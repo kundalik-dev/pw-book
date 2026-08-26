@@ -30,17 +30,17 @@ npm workspaces + Turborepo monorepo:
   [`docs/database-setup.md`](docs/database-setup.md) for one-time local
   instance setup (auth mode, login, TCP/IP).
 
-Root `npm run dev` runs `turbo run dev`, which runs `db#verify` (a quick
+Root `npm run dev` runs `turbo run dev`, which will run `db#verify` (a quick
 connect check against the local instance) before starting the API and Vite
-dev server together. The API also retries its DB connection pool on
-transient failures rather than crashing.
+dev server together — that Turbo wiring is Phase 11, not done yet, so today
+`api` and `web` dev tasks just run independently. The API retries its DB
+connection pool on transient failures rather than crashing (Phase 2, done).
 
 ## Current status
 
 - **`apps/web` (Phases 6-7) is scaffolded and builds/lints/type-checks
-  clean**, but `apps/api` and `apps/db` (Phases 1-5) don't exist yet — the
-  frontend was built ahead of the backend at the user's request. It talks
-  to a swappable `ApiClient` (`apps/web/src/api/client.ts`): an in-memory
+  clean**, built ahead of the backend at the user's request. It talks to a
+  swappable `ApiClient` (`apps/web/src/api/client.ts`): an in-memory
   `MockApiClient` by default, or `HttpApiClient` (real `fetch`, matching
   the `{ error: { message, code } }` shape) when `VITE_USE_MOCK_API=false`.
   Implemented so far: login/register with inline validation, navbar with
@@ -50,13 +50,64 @@ transient failures rather than crashing.
   - Not verified in a real browser this session (no Chrome extension
     connection available) — only `tsc`, `biome check`, and `vite build`
     were run. Click through `npm run dev -w apps/web` before relying on it.
-  - Once Phases 1-5 land, flip `VITE_USE_MOCK_API=false` and re-check
-    `HttpApiClient` / the register/login error-code handling against the
-    real API — the mock only assumes `EMAIL_TAKEN` and
+  - Once Phase 3 (auth APIs) lands, flip `VITE_USE_MOCK_API=false` and
+    re-check `HttpApiClient` / the register/login error-code handling
+    against the real API — the mock only assumes `EMAIL_TAKEN` and
     `INVALID_CREDENTIALS` codes from `docs/features.md`, not whatever the
     real backend actually returns.
-  - `apps/db` and `apps/api` (Phases 1-5) still need to be built before
-    `npm run dev` at root does anything with the DB/API.
+- **`apps/api` (Phase 2) is built and verified end-to-end** against the
+  currently-login-blocked local SQL Server instance (see `apps/db` below):
+  server starts and stays up, `/api/health` returns 200, `/api/health/db`
+  correctly returns 503 while the DB is unreachable and the pool keeps
+  retrying every 5s in the background without crashing the process, and a
+  404 confirmed the `{ error: { message, code } }` shape end-to-end. Zod
+  validation middleware (`src/middleware/validate.ts`) is written but has
+  no consumer yet — Phase 3's routes will be the first. Nothing here is
+  wired into `apps/web` yet (still on the mock client) since there's no
+  `/api/auth/*` for it to call — that's Phase 3.
+  - **Bug found and fixed:** the repo has one root `.env`, but plain
+    `dotenv/config` and Vite's default `envDir` each only look in their own
+    workspace's cwd, so `apps/api` and `apps/web` were silently missing
+    every root env var. Both now resolve the path up to the repo root
+    explicitly (see `apps/api/src/config.ts` and `apps/web/vite.config.ts`)
+    — the same pattern `apps/db/scripts/env.js` already used. Follow this
+    pattern for any new workspace that reads env vars.
+- **`apps/db` (Phase 1) is built but not yet run end-to-end** — blocked on
+  one manual step outside this repo. Details:
+  - Local instance discovered: SQL Server 2025 Express, instance
+    `SQLEXPRESS`, TCP/IP already enabled on fixed port 1433 (so
+    `DB_HOST=localhost` / `DB_PORT=1433` works — no named-instance suffix
+    or SQL Browser needed).
+  - **Blocker:** the instance's `LoginMode` is Windows-Authentication-only.
+    Creating a SQL login doesn't require that (done — see next bullet), but
+    *connecting* with one does. Flipping `LoginMode` to mixed mode and
+    restarting the `MSSQL$SQLEXPRESS` service both require OS admin rights,
+    which this session doesn't have — needs a human to run, in an elevated
+    PowerShell:
+    ```powershell
+    Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.SQLEXPRESS\MSSQLServer' -Name 'LoginMode' -Value 2
+    Restart-Service -Name 'MSSQL$SQLEXPRESS' -Force
+    ```
+  - Already done via `sqlcmd` (Windows auth, no admin needed): created the
+    `pw_books_app` SQL login, the `pw_books` database, and granted
+    `db_owner`. Also ran `apps/db/migrations/001_init.sql` directly via
+    `sqlcmd` to validate it — all 8 tables (Users, Authors, Categories,
+    Books, BookCategories, Loans, Reviews, WishlistItems) created
+    successfully, and a second run confirmed the guards make it idempotent.
+  - `apps/db/scripts/verify-connection.js` was run and correctly fails with
+    a "Login failed" error pointing at `docs/database-setup.md` — this
+    confirms the env-loading and `mssql` connection plumbing work; the only
+    thing standing between here and a working `npm run db:migrate` /
+    `npm run db:seed` is the elevated command above.
+  - `apps/db/scripts/seed.js` (20 books, 6 authors, 5 categories, 3 users,
+    3 loans, 4 reviews — deliberately including an unavailable book, an
+    overdue loan, and a book with zero reviews per `docs/tasks` phase 10)
+    has **not** been run yet; it's written but unverified against a live
+    connection. Run it once the login works and sanity-check the row counts
+    match the comment in `main()`.
+  - Seeded user login for later UI/API testing: any of
+    `admin@pwbooks.test` / `member@pwbooks.test` / `alex@pwbooks.test`,
+    password `Password123!` for all three.
 
 ## Conventions
 

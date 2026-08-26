@@ -3,14 +3,20 @@ import { getDbConfig } from './env.js';
 
 async function main() {
   const config = getDbConfig();
-  console.log(`Connecting to ${config.server}:${config.port}/${config.database} as ${config.user}...`);
+  console.log(
+    `Connecting to ${config.server}:${config.port}/${config.database} as ${config.user}...`,
+  );
 
   let pool;
   try {
     pool = await sql.connect(config);
-    const result = await pool.request().query('SELECT DB_NAME() AS db, SYSUTCDATETIME() AS serverTimeUtc;');
+    const result = await pool
+      .request()
+      .query('SELECT DB_NAME() AS db, SYSUTCDATETIME() AS serverTimeUtc;');
     const row = result.recordset[0];
-    console.log(`Connected. Database: ${row.db}, server time (UTC): ${row.serverTimeUtc.toISOString()}`);
+    console.log(
+      `Connected. Database: ${row.db}, server time (UTC): ${row.serverTimeUtc.toISOString()}`,
+    );
   } catch (err) {
     console.error('Database connection failed.');
     console.error(err.message);

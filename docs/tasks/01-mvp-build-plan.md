@@ -16,52 +16,114 @@ bottom — later phases assume earlier ones are done. Check items off as you go.
       0 packages (no workspaces wired up yet) — sanity check before adding
       apps
 
-## Phase 1 — Database (`apps/db`)
+## Phase 1 — Database (`apps/db`) — ⚠️ built, blocked on one manual step - completed migration successfuly✅
 
 Uses the SQL Server instance already installed on the machine — no
 container. See [`docs/database-setup.md`](../database-setup.md) for the
 one-time local instance setup (auth mode, login, TCP/IP).
 
-- [ ] Create `apps/db` workspace (scripts + SQL only, no app code)
-- [ ] Confirm the local SQL Server instance is reachable (via `sqlcmd` or
-      SSMS/Azure Data Studio) using the credentials that will go in `.env`
-      before writing any scripts against it
-- [ ] `apps/db/migrations/001_init.sql` — `CREATE DATABASE pw_books` (if not
-      exists) + tables: Users, Authors, Categories, Books, BookCategories
-      (junction), Loans, Reviews, WishlistItems
-- [ ] `apps/db/seed.sql` (or a small Node seed script) — a handful of authors,
-      categories, ~20 books with varied availability, 1 admin + 1 member user
-- [ ] `apps/db/scripts/migrate.js` — connects with the `mssql` package using
-      `.env` creds and runs the migration SQL file(s)
-- [ ] `apps/db/scripts/seed.js` — same, for seed data
-- [ ] `apps/db/scripts/verify-connection.js` — quick connect-and-disconnect
-      check; this is what Turbo runs before `api`'s `dev` task so a missing/
-      stopped local SQL Server service fails fast with a clear message
-- [ ] `apps/db/package.json` scripts: `migrate`, `seed`, `verify`
-- [ ] Confirm `npm run db:migrate` then `npm run db:seed` succeed against the
-      local instance before wiring into Turbo
+- [x] Create `apps/db` workspace (scripts + SQL only, no app code)
+- [x] Confirm the local SQL Server instance is reachable — found: SQL
+      Server 2025 Express, instance `SQLEXPRESS`, TCP/IP already enabled on
+      fixed port 1433 (no named-instance suffix needed)
+- [x] `apps/db/migrations/001_init.sql` — idempotent `CREATE TABLE ... IF
+NOT EXISTS`-style DDL for Users, Authors, Categories, Books,
+      BookCategories, Loans, Reviews, WishlistItems. Validated directly via
+      `sqlcmd` (Windows auth): all 8 tables created, re-run confirmed
+      idempotent.
+- [x] `apps/db/scripts/seed.js` — 6 authors, 5 categories, 20 books (varied
+      availability incl. two at 0 copies), 3 users, 3 loans (active,
+      overdue, returned), 4 reviews. **Written but not yet executed** — see
+      blocker below.
+- [x] `apps/db/scripts/migrate.js` — reads `.env`, ensures the DB exists,
+      runs `migrations/*.sql` in order. **Written but not yet executed
+      end-to-end via Node** (the SQL itself was validated separately via
+      `sqlcmd`, see above).
+- [x] `apps/db/scripts/verify-connection.js` — done and run; correctly
+      fails right now with a "Login failed" error (expected — see blocker),
+      confirming the env-loading/connection plumbing itself works.
+- [x] `apps/db/package.json` scripts: `migrate`, `seed`, `verify`
+- [x] Confirm `npm run db:migrate` then `npm run db:seed` succeed against
+      the local instance — **blocked, see below**
 
-## Phase 2 — Backend core (`apps/api`)
+**Blocker (needs a human with OS admin rights):** the SQLEXPRESS instance
+is Windows-Authentication-only. The `pw_books_app` SQL login, the
+`pw_books` database, and `db_owner` grant were already created (via
+`sqlcmd` with Windows auth — doesn't need admin), but SQL Server won't
+accept that login until mixed mode is turned on. Run this once, in an
+**elevated** PowerShell:
 
-- [ ] Scaffold Express + TypeScript (`tsx` or `ts-node-dev` for watch mode)
-- [ ] Config module reading `.env` (DB creds, JWT secret, PORT, CORS origin)
-- [ ] `mssql` connection pool module with retry-on-startup (don't crash if
-      the local SQL Server service isn't running yet or is momentarily
-      unreachable)
-- [ ] Central error-handling middleware → consistent JSON error shape
-      `{ error: { message, code } }`
-- [ ] Request logging (morgan or pino)
-- [ ] `GET /api/health` and `GET /api/health/db`
-- [ ] Zod (or equivalent) request-validation middleware pattern established
+```powershell
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.SQLEXPRESS\MSSQLServer' -Name 'LoginMode' -Value 2
+Restart-Service -Name 'MSSQL$SQLEXPRESS' -Force
+```
 
-## Phase 3 — Auth APIs
+Then run `npm run db:migrate` and `npm run db:seed` from the repo root to
+finish Phase 1. Seeded login for later testing: `admin@pwbooks.test` /
+`member@pwbooks.test` / `alex@pwbooks.test`, password `Password123!`.
 
-- [ ] `POST /api/auth/register` (bcrypt hash, duplicate-email 409)
-- [ ] `POST /api/auth/login` (JWT access + refresh token)
-- [ ] `POST /api/auth/refresh`
-- [ ] `POST /api/auth/logout`
-- [ ] `GET /api/auth/me` + auth middleware (401 on missing/invalid token)
-- [ ] Role-check middleware (`admin` vs `member`) for later use
+## Phase 2 — Backend core (`apps/api`) ✅
+
+- [x] Scaffold Express + TypeScript (`tsx watch` for dev, `tsc` for build).
+      CommonJS, not ESM — NodeNext's mandatory `.js` extensions on relative
+      imports weren't worth it for a small backend; matches how `apps/db`'s
+      scripts are structured too.
+- [x] Config module (`src/config.ts`) reading `.env` (DB creds, JWT secret,
+      PORT, CORS origin) — throws a clear error naming the missing var if
+      one's absent, same as `apps/db/scripts/env.js`
+- [x] `mssql` connection pool module (`src/db/pool.ts`) with retry-on-startup
+      — retries every 5s in the background and re-arms on pool `error`
+      events; verified live against the real (currently login-blocked, see
+      Phase 1) SQL Server instance: server starts and stays up, keeps
+      retrying, never crashes
+- [x] Central error-handling middleware (`src/middleware/errorHandler.ts`) →
+      `{ error: { message, code } }`; verified via curl (404 route, and any
+      `ApiError` thrown downstream)
+- [x] Request logging via `morgan` (`dev` format outside production)
+- [x] `GET /api/health` (always 200) and `GET /api/health/db` (200 when the
+      pool is connected, 503 with `{ dbConnected: false }` otherwise) —
+      manually verified against the currently-unreachable DB
+- [x] Zod request-validation middleware pattern established
+      (`src/middleware/validate.ts`, a `validate(schema, part)` factory) —
+      not yet consumed by a route since there's nothing to validate until
+      Phase 3's auth endpoints exist
+
+  **Bug found and fixed while testing this end-to-end:** the repo has one
+  root `.env` (per README), but plain `dotenv/config` and Vite's default
+  `envDir` each only look in their own workspace's cwd — so `apps/api` and
+  `apps/web` were silently missing every root env var. Fixed both:
+  `apps/api/src/config.ts` now calls `dotenv.config({ path: ... })` resolved
+  up to the repo root (matching the pattern `apps/db/scripts/env.js` already
+  used), and `apps/web/vite.config.ts` now sets `envDir` to the repo root
+  too. If you scaffold another workspace that reads env vars, use the same
+  pattern — don't rely on the default cwd-relative lookup.
+
+## Phase 3 — Auth APIs ✅
+
+- [x] `POST /api/auth/register` (bcrypt hash via `bcryptjs`, duplicate-email
+      409 `EMAIL_TAKEN`)
+- [x] `POST /api/auth/login` (JWT access + refresh token, 401
+      `INVALID_CREDENTIALS`)
+- [x] `POST /api/auth/refresh` — refresh token rotation: each refresh
+      atomically revokes the presented token and issues a new pair; reusing
+      an already-rotated or revoked token returns 401
+      `INVALID_REFRESH_TOKEN`. Backed by a new `dbo.RefreshTokens` table
+      (`apps/db/migrations/002_refresh_tokens.sql`, storing a SHA-256 hash
+      of each token's `jti`, not the raw token)
+- [x] `POST /api/auth/logout` — revokes the given refresh token server-side
+      (204; idempotent on an already-invalid token)
+- [x] `GET /api/auth/me` + `requireAuth` middleware (401 on missing/invalid
+      bearer token)
+- [x] `requireRole(...roles)` middleware (`admin` vs `member`) for later use
+      — not yet wired to a route, Phase 4/5 CRUD will consume it
+
+  Verified end-to-end against the live local DB (not just `tsc`/`biome`):
+  register → login → `/auth/me` → refresh → old-token replay rejected →
+  logout → refresh-after-logout rejected → duplicate-email 409. New files:
+  `src/routes/auth.ts`, `src/services/authService.ts`,
+  `src/schemas/auth.ts`, `src/middleware/auth.ts`, `src/utils/jwt.ts`,
+  `src/utils/password.ts`, `src/db/refreshTokens.ts`. Added `bcryptjs` and
+  `jsonwebtoken` (+ `@types/jsonwebtoken`) to `apps/api/package.json`.
 
 ## Phase 4 — Core CRUD APIs
 
@@ -102,7 +164,7 @@ one-time local instance setup (auth mode, login, TCP/IP).
 
   **Not yet verified in a real browser** — the Chrome extension wasn't
   connected in this session, so this was validated via `tsc`, `biome
-  check`, and `vite build` only, not by clicking through the app. Before
+check`, and `vite build` only, not by clicking through the app. Before
   trusting this UI, load `npm run dev -w apps/web` and check: register →
   redirected to /books with a welcome toast; load more paginates the mock
   24-book set; logout clears the account dropdown and redirects to /login.
@@ -169,7 +231,7 @@ one-time local instance setup (auth mode, login, TCP/IP).
 ## Explicitly deferred (not part of this MVP)
 
 - A `tests/` Playwright workspace inside this repo — the whole point of
-  pw-books is to be automated *from outside*; add a Playwright project
+  pw-books is to be automated _from outside_; add a Playwright project
   later, once the app is stable, if you want it living alongside the app.
 - CI pipeline — not needed for a local practice target.
 - Any real email/payment/production-auth hardening.

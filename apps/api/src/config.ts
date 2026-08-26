@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+// The monorepo has a single root `.env` (see README.md), not a per-workspace
+// one — resolve relative to this file so it's found regardless of cwd.
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 function required(name: string): string {
   const value = process.env[name];

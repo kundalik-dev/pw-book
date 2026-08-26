@@ -29,7 +29,7 @@ export function getPool(): sql.ConnectionPool | null {
 }
 
 export function isDbConnected(): boolean {
-  return pool !== null && pool.connected;
+  return Boolean(pool?.connected);
 }
 
 /**
