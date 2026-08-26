@@ -102,14 +102,17 @@ export function renderBookDetailPage(container: HTMLElement, params: Record<stri
     actions.className = 'book-detail__actions';
     main.appendChild(actions);
 
-    const borrowBtn = document.createElement('button');
-    borrowBtn.type = 'button';
-    borrowBtn.className = 'btn btn--primary';
-    borrowBtn.textContent = 'Borrow this book';
-    borrowBtn.disabled = book.availableCopies <= 0;
-    borrowBtn.setAttribute('data-testid', 'borrow-button');
-    borrowBtn.addEventListener('click', () => navigate(`/borrow/${book.id}`));
-    actions.appendChild(borrowBtn);
+    const isAdmin = getAuthState()?.user.role === 'admin';
+    if (!isAdmin) {
+      const borrowBtn = document.createElement('button');
+      borrowBtn.type = 'button';
+      borrowBtn.className = 'btn btn--primary';
+      borrowBtn.textContent = 'Borrow this book';
+      borrowBtn.disabled = book.availableCopies <= 0;
+      borrowBtn.setAttribute('data-testid', 'borrow-button');
+      borrowBtn.addEventListener('click', () => navigate(`/borrow/${book.id}`));
+      actions.appendChild(borrowBtn);
+    }
 
     const wishlistBtn = document.createElement('button');
     wishlistBtn.type = 'button';

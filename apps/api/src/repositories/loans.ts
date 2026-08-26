@@ -174,6 +174,21 @@ export async function listAllLoans(
 }
 
 /**
+ * Blocks book deletion while any copy is still out with a customer — checked
+ * by `DELETE /books/:id` before it removes the row.
+ */
+export async function hasActiveLoansForBook(bookId: number): Promise<boolean> {
+  const pool = requirePool();
+  const result = await pool
+    .request()
+    .input('bookId', sql.Int, bookId)
+    .query(
+      "SELECT TOP 1 Id FROM dbo.Loans WHERE BookId = @bookId AND Status IN ('active', 'overdue')",
+    );
+  return result.recordset.length > 0;
+}
+
+/**
  * Flips any `active` loan whose due date has passed to `overdue` before
  * reading the report, so the Status column stays meaningful without a
  * separate cron/scheduled job.

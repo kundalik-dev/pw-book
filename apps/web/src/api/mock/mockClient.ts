@@ -214,6 +214,13 @@ export class MockApiClient implements ApiClient {
   }
 
   async deleteBook(id: number): Promise<void> {
+    const hasActiveLoans = this.loans.some((l) => l.bookId === id && l.status !== 'returned');
+    if (hasActiveLoans) {
+      throw new ApiError(
+        'This book cannot be deleted until all outstanding copies are returned',
+        'BOOK_HAS_ACTIVE_LOANS',
+      );
+    }
     this.books = this.books.filter((b) => b.id !== id);
     return delay(undefined);
   }

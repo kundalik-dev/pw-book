@@ -1,4 +1,6 @@
-import { getAuthState } from '../state/auth';
+import { showToast } from '../components/toast';
+import { navigate } from '../router/router';
+import { clearAuthState, getAuthState } from '../state/auth';
 import type {
   AdminUser,
   ApiClient,
@@ -173,9 +175,23 @@ export class HttpApiClient implements ApiClient {
 
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ErrorBody | null;
+      const code = body?.error?.code ?? 'UNKNOWN_ERROR';
+
+      // Access token missing/invalid/expired: log the user out instead of
+      // surfacing this as a page-level error message. Only fires when we
+      // actually sent a token, so it doesn't loop on already-logged-out pages.
+      if (auth && code === 'UNAUTHORIZED') {
+        clearAuthState();
+        showToast('Your session has expired. Please log in again.', 'error');
+        navigate('/login');
+        // Never resolves: the page is navigating away, so callers' .catch
+        // handlers should not run and show their own error toast.
+        return new Promise<T>(() => {});
+      }
+
       throw new ApiError(
         body?.error?.message ?? `Request failed with status ${response.status}`,
-        body?.error?.code ?? 'UNKNOWN_ERROR',
+        code,
       );
     }
 

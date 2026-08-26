@@ -15,6 +15,7 @@ import {
   updateBook,
 } from '../repositories/books';
 import { findOrCreateCategoryByName } from '../repositories/categories';
+import { hasActiveLoansForBook } from '../repositories/loans';
 import {
   availabilitySchema,
   bookIdParamSchema,
@@ -258,7 +259,15 @@ booksRouter.delete(
   validate(bookIdParamSchema, 'params'),
   async (req, res, next) => {
     try {
-      const deleted = await deleteBook(Number(req.params.id));
+      const bookId = Number(req.params.id);
+      if (await hasActiveLoansForBook(bookId)) {
+        throw new ApiError(
+          'This book cannot be deleted until all outstanding copies are returned',
+          'BOOK_HAS_ACTIVE_LOANS',
+          409,
+        );
+      }
+      const deleted = await deleteBook(bookId);
       if (!deleted) throw new ApiError('Book not found', 'BOOK_NOT_FOUND', 404);
       res.status(204).send();
     } catch (err) {

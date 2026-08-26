@@ -1,5 +1,5 @@
 import { apiClient } from '../api/client';
-import type { Author, Book, BooksSort, Category } from '../api/types';
+import { ApiError, type Author, type Book, type BooksSort, type Category } from '../api/types';
 import { createBookForm } from '../components/bookForm';
 import { type OpenModal, openConfirmModal, openModal } from '../components/modal';
 import { showToast } from '../components/toast';
@@ -26,13 +26,15 @@ const COLUMNS: ColumnDef[] = [
   { key: 'createdAt', label: 'Added', sortKey: 'createdAt' },
 ];
 
-export function renderAdminPage(container: HTMLElement): void {
+export function renderAdminPage(container: HTMLElement): () => void {
   const auth = getAuthState();
   if (auth?.user.role !== 'admin') {
     showToast('Admin access required.', 'error');
     navigate('/books');
-    return;
+    return () => {};
   }
+
+  container.classList.add('page-container--wide');
 
   let sortKey: SortKey = 'title';
   let sortDir: 1 | -1 = 1;
@@ -303,14 +305,28 @@ export function renderAdminPage(container: HTMLElement): void {
           ? `Delete "${label}"? This can't be undone.`
           : `Delete ${ids.length} book${ids.length === 1 ? '' : 's'}? This can't be undone.`,
       onConfirm: async () => {
-        try {
-          for (const id of ids) await apiClient.deleteBook(id);
-          for (const id of ids) selected.delete(id);
-          showToast(ids.length === 1 ? 'Book deleted.' : `${ids.length} books deleted.`, 'success');
-          await load();
-        } catch {
-          showToast('Could not delete one or more books.', 'error');
+        const failures: string[] = [];
+        for (const id of ids) {
+          try {
+            await apiClient.deleteBook(id);
+            selected.delete(id);
+          } catch (err) {
+            failures.push(
+              err instanceof ApiError ? err.message : `Book #${id} could not be deleted.`,
+            );
+          }
         }
+        const deletedCount = ids.length - failures.length;
+        if (deletedCount > 0) {
+          showToast(
+            deletedCount === 1 ? 'Book deleted.' : `${deletedCount} books deleted.`,
+            'success',
+          );
+        }
+        if (failures.length > 0) {
+          showToast(failures[0], 'error');
+        }
+        await load();
       },
     });
   }
@@ -387,4 +403,8 @@ export function renderAdminPage(container: HTMLElement): void {
 
   void loadLookups();
   void load();
+
+  return () => {
+    container.classList.remove('page-container--wide');
+  };
 }

@@ -28,11 +28,12 @@ export function mountNavbar(target: HTMLElement): void {
     const auth = getAuthState();
     if (auth) {
       links.appendChild(createNavLink('/wishlist', 'Wishlist'));
-      links.appendChild(createNavLink('/orders', 'Orders'));
       if (auth.user.role === 'admin') {
         links.appendChild(createNavLink('/admin', 'Admin'));
         links.appendChild(createNavLink('/admin/orders', 'All orders'));
         links.appendChild(createNavLink('/settings', 'Settings'));
+      } else {
+        links.appendChild(createNavLink('/orders', 'Orders'));
       }
     }
 

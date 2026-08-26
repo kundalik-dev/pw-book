@@ -17,9 +17,15 @@ const STEPS: Array<{ id: StepId; label: string }> = [
 ];
 
 export function renderBorrowPage(container: HTMLElement, params: Record<string, string>): void {
-  if (!getAuthState()) {
+  const auth = getAuthState();
+  if (!auth) {
     showToast('Log in to borrow a book.', 'error');
     navigate('/login');
+    return;
+  }
+  if (auth.user.role === 'admin') {
+    showToast('Admins cannot borrow books.', 'error');
+    navigate('/admin/orders');
     return;
   }
 

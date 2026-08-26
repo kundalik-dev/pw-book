@@ -29,6 +29,11 @@ export function renderOrdersPage(container: HTMLElement): void {
     navigate('/login');
     return;
   }
+  if (auth.user.role === 'admin') {
+    showToast('Admins cannot order books.', 'error');
+    navigate('/admin/orders');
+    return;
+  }
 
   let books: Book[] = [];
   let bookTitles = new Map<number, string>();
