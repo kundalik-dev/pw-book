@@ -69,8 +69,9 @@
 .modal {
   background: var(--color-surface);
   border-radius: var(--radius);
-  min-width: 320px;
-  max-width: 90vw;
+  width: min(560px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
@@ -78,7 +79,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem 0.5rem;
+  padding: 1.25rem 1.5rem 0.5rem;
 }
 
 .modal__title {
@@ -96,14 +97,14 @@
 }
 
 .modal__body {
-  padding: 0.5rem 1.25rem 1rem;
+  padding: 0.5rem 1.5rem 1rem;
 }
 
 .modal__footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  padding: 0 1.25rem 1.25rem;
+  padding: 0 1.5rem 1.5rem;
 }
 
 /* Carousel */
@@ -361,6 +362,133 @@
 
 /* Admin table */
 
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.admin-toolbar__add {
+  margin-left: auto;
+}
+
+.admin-table__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.admin-table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  background: var(--color-surface);
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.pagination-bar__limit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.book-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.book-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.book-form__field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.book-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .book-form__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.book-form input,
+.book-form select,
+.book-form textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.book-form input:focus-visible,
+.book-form select:focus-visible,
+.book-form textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.book-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.book-form__categories {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+}
+
+.book-form__categories legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 0 0.3rem;
+}
+
+.book-form__categories label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.book-form__error {
+  color: var(--color-error);
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 .bulk-bar {
   display: flex;
   align-items: center;
@@ -368,30 +496,228 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 0.6rem 1rem;
-  margin: 1rem 0;
+  padding: 0.55rem 0.6rem 0.55rem 1rem;
+}
+
+.bulk-bar[hidden] {
+  display: none;
+}
+
+.bulk-bar__count {
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.92rem;
 }
 
 .admin-table th,
 .admin-table td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: 0.7rem 0.9rem;
+  vertical-align: middle;
   border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.admin-table thead th {
+  background: var(--color-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--color-bg);
 }
 
 .admin-table__sort-btn {
   background: none;
   border: none;
   font: inherit;
+  font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
   padding: 0;
+  color: inherit;
+}
+
+.admin-table__sort-btn:hover {
   color: var(--color-text);
+}
+
+/* Admin add/edit-book full page (/admin/add-book) */
+
+.admin-form-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.admin-form-page__card {
+  margin-top: 1.25rem;
+  padding: 2rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.admin-form-page__card h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.4rem;
+}
+
+.admin-form-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Orders */
+
+.order-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.order-form h2 {
+  flex-basis: 100%;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.order-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.order-form input,
+.order-form select {
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.orders-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin: 0 0 1rem;
+}
+
+.orders-filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.orders-filter-bar input,
+.orders-filter-bar select {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.orders-table__empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 1.5rem 0.75rem;
+}
+
+/* Admin orders (all-orders + per-user/per-book history) */
+
+.admin-orders-page__subheading {
+  margin: -0.5rem 0 1.25rem;
+  color: var(--color-text-muted);
+}
+
+.order-status {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.order-status--active {
+  background: rgba(108, 143, 239, 0.15);
+  color: var(--color-primary);
+}
+
+.order-status--returned {
+  background: rgba(62, 203, 124, 0.15);
+  color: var(--color-success);
+}
+
+.order-status--overdue {
+  background: rgba(239, 106, 95, 0.15);
+  color: var(--color-error);
+}
+
+.return-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 280px;
+}
+
+.return-modal-content__date {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.return-modal-content label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.return-modal-content select {
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.return-modal-content__error {
+  color: var(--color-error);
+  margin: 0;
+  font-size: 0.85rem;
 }
 
 /* Wishlist */

@@ -1,12 +1,16 @@
 import { getAuthState } from '../../state/auth';
 import type {
+  AdminUser,
   ApiClient,
+  AppUser,
   Author,
   AuthResult,
   Book,
+  BookInput,
   Category,
   CreateReviewInput,
   ListBooksParams,
+  ListLoansParams,
   Loan,
   LoginInput,
   PaginatedBooks,
@@ -38,6 +42,11 @@ function userIdFromToken(token: string): string | null {
   return parts.length >= 2 ? parts[1] : null;
 }
 
+/** Mock user ids are `u-N` strings; the real API's Users.Id is numeric, so admin/customer lookups mirror that. */
+function numericUserId(record: MockUserRecord): number {
+  return Number(record.id.replace(/^u-/, '')) || 0;
+}
+
 /**
  * Optional stand-in for the real backend, for offline work or when the local
  * SQL Server instance isn't running (opt in via VITE_USE_MOCK_API=true).
@@ -53,6 +62,7 @@ export class MockApiClient implements ApiClient {
   private loans: Loan[] = [];
   private nextReviewId = 1;
   private nextLoanId = 1;
+  private nextBookId = Math.max(0, ...mockBooks.map((b) => b.id)) + 1;
 
   async register(input: RegisterInput): Promise<AuthResult> {
     if (this.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
@@ -166,6 +176,43 @@ export class MockApiClient implements ApiClient {
     return delay(book);
   }
 
+  async createBook(input: BookInput): Promise<Book> {
+    const book: Book = {
+      id: this.nextBookId++,
+      title: input.title,
+      isbn: input.isbn,
+      authorId: input.authorId,
+      categoryIds: input.categoryIds,
+      description: input.description ?? null,
+      publishedYear: input.publishedYear ?? null,
+      coverImageUrl: null,
+      totalCopies: input.totalCopies,
+      availableCopies: input.totalCopies,
+      createdAt: new Date().toISOString(),
+    };
+    this.books.push(book);
+    return delay(book);
+  }
+
+  async updateBook(id: number, input: BookInput): Promise<Book> {
+    const index = this.books.findIndex((b) => b.id === id);
+    if (index === -1) throw new ApiError('Book not found', 'BOOK_NOT_FOUND');
+    const existing = this.books[index];
+    const updated: Book = {
+      ...existing,
+      title: input.title,
+      isbn: input.isbn,
+      authorId: input.authorId,
+      categoryIds: input.categoryIds,
+      description: input.description ?? null,
+      publishedYear: input.publishedYear ?? null,
+      totalCopies: input.totalCopies,
+      availableCopies: Math.min(existing.availableCopies, input.totalCopies),
+    };
+    this.books[index] = updated;
+    return delay(updated);
+  }
+
   async deleteBook(id: number): Promise<void> {
     this.books = this.books.filter((b) => b.id !== id);
     return delay(undefined);
@@ -197,15 +244,18 @@ export class MockApiClient implements ApiClient {
     return delay(undefined);
   }
 
-  async createLoan(bookId: number): Promise<Loan> {
+  async createLoan(bookId: number, dueAt?: string): Promise<Loan> {
     const userId = this.requireUserId();
     const loan: Loan = {
       id: this.nextLoanId++,
       bookId,
       userId,
       borrowedAt: new Date().toISOString(),
-      dueAt: new Date(Date.now() + MOCK_LOAN_PERIOD_DAYS * 86_400_000).toISOString(),
+      dueAt: dueAt
+        ? new Date(dueAt).toISOString()
+        : new Date(Date.now() + MOCK_LOAN_PERIOD_DAYS * 86_400_000).toISOString(),
       returnedAt: null,
+      returnedToAdminId: null,
       status: 'active',
     };
     this.loans.push(loan);
@@ -215,6 +265,54 @@ export class MockApiClient implements ApiClient {
   async listMyLoans(): Promise<Loan[]> {
     const userId = this.requireUserId();
     return delay(this.loans.filter((l) => l.userId === userId));
+  }
+
+  async returnLoan(id: number, receivedByAdminId: number): Promise<Loan> {
+    const auth = getAuthState();
+    const userId = this.requireUserId();
+    const isAdmin = auth?.user.role === 'admin';
+    const index = this.loans.findIndex((l) => l.id === id && (isAdmin || l.userId === userId));
+    if (index === -1) throw new ApiError('Loan not found', 'LOAN_NOT_FOUND');
+    if (this.loans[index].status === 'returned') {
+      throw new ApiError('This loan has already been returned', 'LOAN_ALREADY_RETURNED');
+    }
+    const admin = this.users.find(
+      (u) => u.role === 'admin' && numericUserId(u) === receivedByAdminId,
+    );
+    if (!admin) throw new ApiError('Selected admin not found', 'ADMIN_NOT_FOUND');
+    const updated: Loan = {
+      ...this.loans[index],
+      status: 'returned',
+      returnedAt: new Date().toISOString(),
+      returnedToAdminId: receivedByAdminId,
+    };
+    this.loans[index] = updated;
+    return delay(updated);
+  }
+
+  async listAdmins(): Promise<AdminUser[]> {
+    return delay(
+      this.users
+        .filter((u) => u.role === 'admin')
+        .map((u) => ({ id: numericUserId(u), name: u.name, email: u.email })),
+    );
+  }
+
+  async listAllLoans(params: ListLoansParams = {}): Promise<Loan[]> {
+    const filtered = this.loans.filter((l) => {
+      if (params.userId !== undefined && l.userId !== params.userId) return false;
+      if (params.bookId !== undefined && l.bookId !== params.bookId) return false;
+      return true;
+    });
+    return delay([...filtered].sort((a, b) => b.borrowedAt.localeCompare(a.borrowedAt)));
+  }
+
+  async listUsers(): Promise<AppUser[]> {
+    return delay(
+      [...this.users]
+        .map((u) => ({ id: numericUserId(u), name: u.name, email: u.email, role: u.role }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
   }
 
   async resetSystem(): Promise<ResetSummary> {

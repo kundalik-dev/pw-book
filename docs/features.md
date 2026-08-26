@@ -13,7 +13,8 @@ kind of thing to automate?" — if not, skip it.
 - **Category** — id, name (Fiction, Non-fiction, Sci-Fi, ...)
 - **Book** — id, title, isbn, authorId, categoryIds[], description, publishedYear,
   coverImageUrl, totalCopies, availableCopies, createdAt
-- **Loan** — id, bookId, userId, borrowedAt, dueAt, returnedAt, status (`active` | `returned` | `overdue`)
+- **Loan** — id, bookId, userId, borrowedAt, dueAt, returnedAt, returnedToAdminId,
+  status (`active` | `returned` | `overdue`)
 - **Review** — id, bookId, userId, rating (1-5), comment, createdAt
 - **Wishlist item** — userId, bookId, addedAt
 
@@ -46,11 +47,29 @@ Grouped by the Playwright/API-testing pattern each one is meant to drill.
 - **Practice:** simple, fast CRUD to build baseline API test suites and fixtures/teardown patterns
 
 ### Loans (borrow/return workflow)
-- `POST /api/loans` — borrow a book (fails with 409 if no copies available)
-- `PUT /api/loans/:id/return` — return a book
+- `POST /api/loans` — borrow a book (fails with 409 if no copies available);
+  accepts an optional `dueAt` so a caller can pin a specific return date
+  (the Orders page's date picker), validated server-side to fall between
+  today and 10 days from today — omit it and the API falls back to the
+  default 14-day estimate the borrow wizard uses
+- `PUT /api/loans/:id/return` — return a book; requires `receivedByAdminId`
+  (the admin the book was physically handed back to — validated against
+  `dbo.Users` and rejected with 400 `ADMIN_NOT_FOUND` if it isn't an actual
+  admin), and re-increments the book's `AvailableCopies` on success
 - `GET /api/loans/me` — current user's loan history
 - `GET /api/loans/overdue` — admin report
-- **Practice:** stateful workflows, sequential API calls that must run in order, business-rule error codes
+- `GET /api/loans` — admin-only, every order across every customer, optionally
+  narrowed with `?userId=`/`?bookId=` (powers the admin Orders page and its
+  per-user/per-book history pages); an admin may also `PUT /loans/:id/return`
+  a loan they don't own, so the admin UI can process any customer's return
+- `GET /api/users/admins` — list admin users (any authenticated caller;
+  powers the Orders page's return-handover dropdown)
+- `GET /api/users` — admin-only, every user (id/name/email/role); powers the
+  admin Orders page's customer name lookups
+- **Practice:** stateful workflows, sequential API calls that must run in
+  order, business-rule error codes, server-side date-range validation,
+  cross-entity reference validation (the handover admin id), role-gated
+  query-filtered listings
 
 ### Reviews
 - `GET /api/books/:id/reviews`
@@ -102,6 +121,22 @@ Ordered simple → complex; each maps to Playwright locator/interaction practice
 - Modal dialogs — confirm-delete modal, "add to wishlist" modal
 - Multi-step wizard — the borrow/checkout flow (select book → confirm →
   due-date review → success)
+- Orders page (`/orders`) — place an order for a book with a user-picked
+  return date (native `<input type="date">`, `min`/`max` clamped to a
+  10-day window from today), plus a sortable/filterable history table of
+  every past and current order (sort by book or order date, filter by book
+  title and an order-date range) with a per-row Return action that opens a
+  confirm modal — pre-filled with today's return date, an admin-handover
+  dropdown (admin users only) that's required before confirming — which
+  marks the loan returned and frees up the book's availability
+- Admin Orders (`/admin/orders`, admin-only) — every customer's orders in one
+  sortable/filterable table (filter by book title, customer, status), each
+  row showing who ordered what, ordered/return-by/returned-on dates, which
+  admin it was returned to, and a Return action (an admin can return any
+  customer's loan). Book and Customer names link to two drill-down pages:
+  `/admin/orders/book/:id/history` (everyone who's ordered that book, their
+  return status/date) and `/admin/orders/user/:id/history` (one customer's
+  full order history) — both admin-only, reusing the same return flow.
 - Drag-and-drop — reorder items in the wishlist
 - Theme toggle (light/dark), persisted via `localStorage`
 - An `<iframe>` — embedded "library location" map/preview panel

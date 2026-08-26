@@ -14,6 +14,7 @@ import { healthRouter } from './routes/health';
 import { loansRouter } from './routes/loans';
 import { reviewsRouter } from './routes/reviews';
 import { systemRouter } from './routes/system';
+import { usersRouter } from './routes/users';
 
 export function createApp(): Express {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp(): Express {
   app.use('/api', booksRouter);
   app.use('/api', loansRouter);
   app.use('/api', reviewsRouter);
+  app.use('/api', usersRouter);
   app.use('/api', chaosRouter);
   app.use('/api', systemRouter);
 

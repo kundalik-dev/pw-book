@@ -28,8 +28,30 @@ CSS issues, or interaction sequences that only show up at runtime.
 through: register/login, book grid + load more, search + every filter +
 sort + clear filters, book detail (carousel, tabs, star-rated review
 submit), the borrow wizard all 4 steps, wishlist add/drag-reorder/remove,
-admin table sort/select/bulk-delete, the `/settings` reset-app flow,
-theme toggle persistence, and delete-account's `confirm()` dialog.
+admin table sort/select/bulk-delete/pagination/add-book/edit-book, the
+`/settings` reset-app flow, theme toggle persistence, and
+delete-account's `confirm()` dialog.
+
+The Orders page (`/orders`, `pages/orders.ts`, added after the original
+Phase 6-9 passes) is in the same boat: verified only via `tsc`, `biome
+check`, `vite build`, and curl round-trips against `POST /api/loans`
+(with and without `dueAt`, plus a rejected out-of-window date),
+`GET /api/loans/me`, `GET /api/users/admins`, and `PUT /api/loans/:id/return`
+(with a missing `receivedByAdminId`, a bogus one, and a valid one —
+confirmed it re-increments the book's `AvailableCopies`) — not yet clicked
+through in a browser. Add it to the click-through list: place an order
+with the return-date picker (check the native `min`/`max` clamp), sort
+the history table by book and by order date, filter by book title and by
+date range, and return an active order — confirm the modal's date is
+pre-filled, the admin dropdown lists admin users only and blocks confirm
+until one is picked, and the row updates with status/returned-on/returned-to
+afterward.
+
+The admin table's add/edit-book form and pagination controls
+(`pages/admin.ts`) are new since the original Phase 9 pass and have only
+been verified via `tsc`, `biome check`, `vite build`, and a curl round-trip
+against `POST`/`PUT`/`DELETE /api/books` and `GET /api/books?page=&limit=&sort=`
+— not yet clicked through in a browser either.
 
 ## 2. Frontend never calls `POST /api/auth/logout` or `POST /api/auth/refresh`
 

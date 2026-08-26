@@ -88,6 +88,14 @@ Quick orientation:
   existing one with flags — this app's job is to have lots of distinct,
   learnable surface, not to be DRY.
 - Env vars are documented in `.env.sample`; never commit a real `.env`.
+- Accessibility isn't optional here — it's what makes elements reliably
+  targetable by Playwright locators. Every interactive element needs an
+  accessible name: real `<button>`/`<a>`/`<input>` elements (not clickable
+  `<div>`s), form inputs associated with a `<label for>` (or wrapped in one),
+  icon-only controls given `aria-label`, grouped checkboxes/radios in a
+  `<fieldset><legend>`, and `data-testid` added on top for anything a visible
+  label/role can't uniquely identify (repeated rows, icon buttons). This
+  favors `getByRole`/`getByLabel` locators over brittle CSS/XPath selectors.
 
 ## Commands
 
@@ -108,3 +116,4 @@ Quick orientation:
   truth for what should exist, not this file.
 - This repo intentionally does not include a Playwright test suite itself
   (see "Explicitly deferred" in the task plan) — don't add one unless asked.
+- Dont use chrome extension for testing instead ask me to do testing and in terminal show what to test for that feature in short.

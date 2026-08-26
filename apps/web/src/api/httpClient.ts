@@ -1,12 +1,16 @@
 import { getAuthState } from '../state/auth';
 import type {
+  AdminUser,
   ApiClient,
+  AppUser,
   Author,
   AuthResult,
   Book,
+  BookInput,
   Category,
   CreateReviewInput,
   ListBooksParams,
+  ListLoansParams,
   Loan,
   LoginInput,
   PaginatedBooks,
@@ -68,6 +72,19 @@ export class HttpApiClient implements ApiClient {
     return book;
   }
 
+  async createBook(input: BookInput): Promise<Book> {
+    const { book } = await this.request<{ book: Book }>('/books', { method: 'POST', body: input });
+    return book;
+  }
+
+  async updateBook(id: number, input: BookInput): Promise<Book> {
+    const { book } = await this.request<{ book: Book }>(`/books/${id}`, {
+      method: 'PUT',
+      body: input,
+    });
+    return book;
+  }
+
   async deleteBook(id: number): Promise<void> {
     await this.request<void>(`/books/${id}`, { method: 'DELETE' });
   }
@@ -91,10 +108,10 @@ export class HttpApiClient implements ApiClient {
     await this.request<void>(`/reviews/${id}`, { method: 'DELETE' });
   }
 
-  async createLoan(bookId: number): Promise<Loan> {
+  async createLoan(bookId: number, dueAt?: string): Promise<Loan> {
     const { loan } = await this.request<{ loan: Loan }>('/loans', {
       method: 'POST',
-      body: { bookId },
+      body: dueAt ? { bookId, dueAt } : { bookId },
     });
     return loan;
   }
@@ -102,6 +119,37 @@ export class HttpApiClient implements ApiClient {
   async listMyLoans(): Promise<Loan[]> {
     const { loans } = await this.request<{ loans: Loan[] }>('/loans/me', { method: 'GET' });
     return loans;
+  }
+
+  async returnLoan(id: number, receivedByAdminId: number): Promise<Loan> {
+    const { loan } = await this.request<{ loan: Loan }>(`/loans/${id}/return`, {
+      method: 'PUT',
+      body: { receivedByAdminId },
+    });
+    return loan;
+  }
+
+  async listAdmins(): Promise<AdminUser[]> {
+    const { admins } = await this.request<{ admins: AdminUser[] }>('/users/admins', {
+      method: 'GET',
+    });
+    return admins;
+  }
+
+  async listAllLoans(params: ListLoansParams = {}): Promise<Loan[]> {
+    const query = new URLSearchParams();
+    if (params.userId !== undefined) query.set('userId', String(params.userId));
+    if (params.bookId !== undefined) query.set('bookId', String(params.bookId));
+    const qs = query.toString();
+    const { loans } = await this.request<{ loans: Loan[] }>(`/loans${qs ? `?${qs}` : ''}`, {
+      method: 'GET',
+    });
+    return loans;
+  }
+
+  async listUsers(): Promise<AppUser[]> {
+    const { users } = await this.request<{ users: AppUser[] }>('/users', { method: 'GET' });
+    return users;
   }
 
   async resetSystem(): Promise<ResetSummary> {

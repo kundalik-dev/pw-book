@@ -70,6 +70,16 @@ export interface ListBooksParams {
   available?: boolean;
 }
 
+export interface BookInput {
+  title: string;
+  isbn: string;
+  authorId: number;
+  categoryIds: number[];
+  description?: string;
+  publishedYear?: number;
+  totalCopies: number;
+}
+
 export interface Review {
   id: number;
   bookId: number;
@@ -91,7 +101,26 @@ export interface Loan {
   borrowedAt: string;
   dueAt: string;
   returnedAt: string | null;
+  returnedToAdminId: number | null;
   status: 'active' | 'returned' | 'overdue';
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface AppUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export interface ListLoansParams {
+  userId?: number;
+  bookId?: number;
 }
 
 export interface RegisterInput {
@@ -132,11 +161,19 @@ export interface ApiClient {
   listAuthors(): Promise<Author[]>;
   listCategories(): Promise<Category[]>;
   getBook(id: number): Promise<Book>;
+  createBook(input: BookInput): Promise<Book>;
+  updateBook(id: number, input: BookInput): Promise<Book>;
   deleteBook(id: number): Promise<void>;
   listBookReviews(bookId: number): Promise<Review[]>;
   createReview(bookId: number, input: CreateReviewInput): Promise<Review>;
   deleteReview(id: number): Promise<void>;
-  createLoan(bookId: number): Promise<Loan>;
+  createLoan(bookId: number, dueAt?: string): Promise<Loan>;
   listMyLoans(): Promise<Loan[]>;
+  returnLoan(id: number, receivedByAdminId: number): Promise<Loan>;
+  listAdmins(): Promise<AdminUser[]>;
+  /** Admin-only: all orders across every customer, optionally narrowed to one user or one book. */
+  listAllLoans(params?: ListLoansParams): Promise<Loan[]>;
+  /** Admin-only: every user, for the admin Orders page's customer lookups. */
+  listUsers(): Promise<AppUser[]>;
   resetSystem(): Promise<ResetSummary>;
 }

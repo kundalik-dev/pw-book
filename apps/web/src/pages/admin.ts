@@ -1,21 +1,29 @@
 import { apiClient } from '../api/client';
-import type { Book, BooksSort } from '../api/types';
-import { openConfirmModal } from '../components/modal';
+import type { Author, Book, BooksSort, Category } from '../api/types';
+import { createBookForm } from '../components/bookForm';
+import { type OpenModal, openConfirmModal, openModal } from '../components/modal';
 import { showToast } from '../components/toast';
 import { navigate } from '../router/router';
 import { getAuthState } from '../state/auth';
 import '../styles/phase9.css';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
-interface SortableColumn {
-  key: 'title' | 'publishedYear' | 'createdAt';
+type SortKey = 'title' | 'publishedYear' | 'createdAt';
+
+interface ColumnDef {
+  key: string;
   label: string;
+  sortKey?: SortKey;
 }
-const COLUMNS: SortableColumn[] = [
-  { key: 'title', label: 'Title' },
-  { key: 'publishedYear', label: 'Published' },
-  { key: 'createdAt', label: 'Added' },
+
+const COLUMNS: ColumnDef[] = [
+  { key: 'title', label: 'Title', sortKey: 'title' },
+  { key: 'author', label: 'Author' },
+  { key: 'isbn', label: 'ISBN' },
+  { key: 'publishedYear', label: 'Published', sortKey: 'publishedYear' },
+  { key: 'copies', label: 'Copies' },
+  { key: 'createdAt', label: 'Added', sortKey: 'createdAt' },
 ];
 
 export function renderAdminPage(container: HTMLElement): void {
@@ -26,27 +34,39 @@ export function renderAdminPage(container: HTMLElement): void {
     return;
   }
 
-  let sortKey: SortableColumn['key'] = 'title';
+  let sortKey: SortKey = 'title';
   let sortDir: 1 | -1 = 1;
+  let page = 1;
+  let limit = PAGE_SIZE_OPTIONS[0];
+  let totalPages = 1;
+  let total = 0;
   let currentBooks: Book[] = [];
   const selected = new Set<number>();
+  let authors: Author[] = [];
+  let categories: Category[] = [];
+  let authorNames = new Map<number, string>();
 
-  const page = document.createElement('div');
-  page.className = 'admin-page';
-  page.setAttribute('data-testid', 'admin-page');
-  container.appendChild(page);
+  const root = document.createElement('div');
+  root.className = 'admin-page';
+  root.setAttribute('data-testid', 'admin-page');
+  container.appendChild(root);
 
   const heading = document.createElement('h1');
   heading.textContent = 'Manage books';
-  page.appendChild(heading);
+  root.appendChild(heading);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'admin-toolbar';
+  root.appendChild(toolbar);
 
   const bulkBar = document.createElement('div');
   bulkBar.className = 'bulk-bar';
   bulkBar.hidden = true;
   bulkBar.setAttribute('data-testid', 'bulk-delete-bar');
-  page.appendChild(bulkBar);
+  toolbar.appendChild(bulkBar);
 
   const bulkCount = document.createElement('span');
+  bulkCount.className = 'bulk-bar__count';
   bulkBar.appendChild(bulkCount);
 
   const bulkDeleteBtn = document.createElement('button');
@@ -56,18 +76,86 @@ export function renderAdminPage(container: HTMLElement): void {
   bulkDeleteBtn.setAttribute('data-testid', 'bulk-delete-button');
   bulkBar.appendChild(bulkDeleteBtn);
 
+  const addBookBtn = document.createElement('a');
+  addBookBtn.href = '/admin/add-book';
+  addBookBtn.dataset.link = '';
+  addBookBtn.className = 'btn btn--primary admin-toolbar__add';
+  addBookBtn.textContent = 'Add book';
+  addBookBtn.setAttribute('data-testid', 'add-book-button');
+  toolbar.appendChild(addBookBtn);
+
+  const tableWrapper = document.createElement('div');
+  tableWrapper.className = 'admin-table-wrapper';
+  root.appendChild(tableWrapper);
+
   const table = document.createElement('table');
   table.className = 'admin-table';
   table.setAttribute('data-testid', 'admin-books-table');
-  page.appendChild(table);
+  tableWrapper.appendChild(table);
 
   const thead = document.createElement('thead');
   table.appendChild(thead);
   const tbody = document.createElement('tbody');
   table.appendChild(tbody);
 
+  const paginationBar = document.createElement('div');
+  paginationBar.className = 'pagination-bar';
+  paginationBar.setAttribute('data-testid', 'pagination-bar');
+  root.appendChild(paginationBar);
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'btn btn--secondary';
+  prevBtn.textContent = 'Previous';
+  prevBtn.setAttribute('data-testid', 'pagination-prev');
+  prevBtn.addEventListener('click', () => {
+    if (page > 1) {
+      page -= 1;
+      void load();
+    }
+  });
+  paginationBar.appendChild(prevBtn);
+
+  const pageInfo = document.createElement('span');
+  pageInfo.setAttribute('data-testid', 'pagination-info');
+  paginationBar.appendChild(pageInfo);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'btn btn--secondary';
+  nextBtn.textContent = 'Next';
+  nextBtn.setAttribute('data-testid', 'pagination-next');
+  nextBtn.addEventListener('click', () => {
+    if (page < totalPages) {
+      page += 1;
+      void load();
+    }
+  });
+  paginationBar.appendChild(nextBtn);
+
+  const limitLabel = document.createElement('label');
+  limitLabel.className = 'pagination-bar__limit';
+  limitLabel.append('Rows per page ');
+  const limitSelect = document.createElement('select');
+  limitSelect.setAttribute('data-testid', 'pagination-limit');
+  for (const size of PAGE_SIZE_OPTIONS) {
+    const opt = document.createElement('option');
+    opt.value = String(size);
+    opt.textContent = String(size);
+    if (size === limit) opt.selected = true;
+    limitSelect.appendChild(opt);
+  }
+  limitSelect.addEventListener('change', () => {
+    limit = Number(limitSelect.value);
+    page = 1;
+    void load();
+  });
+  limitLabel.appendChild(limitSelect);
+  paginationBar.appendChild(limitLabel);
+
   const selectAllCheckbox = document.createElement('input');
   selectAllCheckbox.type = 'checkbox';
+  selectAllCheckbox.setAttribute('aria-label', 'Select all books on this page');
   selectAllCheckbox.setAttribute('data-testid', 'select-all-checkbox');
   selectAllCheckbox.addEventListener('change', () => {
     selected.clear();
@@ -88,22 +176,27 @@ export function renderAdminPage(container: HTMLElement): void {
 
     for (const col of COLUMNS) {
       const th = document.createElement('th');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'admin-table__sort-btn';
-      btn.setAttribute('data-testid', `sort-${col.key}`);
-      const arrow = sortKey === col.key ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
-      btn.textContent = col.label + arrow;
-      btn.addEventListener('click', () => {
-        if (sortKey === col.key) {
-          sortDir = sortDir === 1 ? -1 : 1;
-        } else {
-          sortKey = col.key;
-          sortDir = 1;
-        }
-        load();
-      });
-      th.appendChild(btn);
+      if (col.sortKey) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'admin-table__sort-btn';
+        btn.setAttribute('data-testid', `sort-${col.sortKey}`);
+        const arrow = sortKey === col.sortKey ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+        btn.textContent = col.label + arrow;
+        btn.addEventListener('click', () => {
+          if (sortKey === col.sortKey) {
+            sortDir = sortDir === 1 ? -1 : 1;
+          } else {
+            sortKey = col.sortKey as SortKey;
+            sortDir = 1;
+          }
+          page = 1;
+          void load();
+        });
+        th.appendChild(btn);
+      } else {
+        th.textContent = col.label;
+      }
       row.appendChild(th);
     }
 
@@ -124,6 +217,7 @@ export function renderAdminPage(container: HTMLElement): void {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = selected.has(book.id);
+      checkbox.setAttribute('aria-label', `Select ${book.title}`);
       checkbox.setAttribute('data-testid', `select-book-${book.id}`);
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) selected.add(book.id);
@@ -137,15 +231,42 @@ export function renderAdminPage(container: HTMLElement): void {
       titleTd.textContent = book.title;
       row.appendChild(titleTd);
 
+      const authorTd = document.createElement('td');
+      authorTd.textContent = authorNames.get(book.authorId) ?? 'Unknown';
+      row.appendChild(authorTd);
+
+      const isbnTd = document.createElement('td');
+      isbnTd.textContent = book.isbn;
+      row.appendChild(isbnTd);
+
       const yearTd = document.createElement('td');
       yearTd.textContent = book.publishedYear ? String(book.publishedYear) : '—';
       row.appendChild(yearTd);
+
+      const copiesTd = document.createElement('td');
+      const copiesBadge = document.createElement('span');
+      copiesBadge.className = `badge ${book.availableCopies > 0 ? 'badge--available' : 'badge--unavailable'}`;
+      copiesBadge.textContent = `${book.availableCopies} / ${book.totalCopies}`;
+      copiesTd.appendChild(copiesBadge);
+      row.appendChild(copiesTd);
 
       const addedTd = document.createElement('td');
       addedTd.textContent = new Date(book.createdAt).toLocaleDateString();
       row.appendChild(addedTd);
 
       const actionsTd = document.createElement('td');
+      actionsTd.className = 'admin-table__actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn--secondary';
+      editBtn.textContent = 'Edit';
+      editBtn.setAttribute('data-testid', `edit-book-${book.id}`);
+      editBtn.addEventListener('click', () => {
+        openEditBookForm(book, () => void load());
+      });
+      actionsTd.appendChild(editBtn);
+
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'btn btn--secondary';
@@ -153,6 +274,7 @@ export function renderAdminPage(container: HTMLElement): void {
       deleteBtn.setAttribute('data-testid', `delete-book-${book.id}`);
       deleteBtn.addEventListener('click', () => confirmDelete([book.id], book.title));
       actionsTd.appendChild(deleteBtn);
+
       row.appendChild(actionsTd);
 
       tbody.appendChild(row);
@@ -163,6 +285,13 @@ export function renderAdminPage(container: HTMLElement): void {
     bulkBar.hidden = selected.size === 0;
     bulkCount.textContent = `${selected.size} selected`;
     selectAllCheckbox.checked = currentBooks.length > 0 && selected.size === currentBooks.length;
+  }
+
+  function updatePaginationBar(): void {
+    pageInfo.textContent =
+      total === 0 ? 'No books' : `Page ${page} of ${totalPages} (${total} books)`;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= totalPages;
   }
 
   function confirmDelete(ids: number[], label: string): void {
@@ -190,18 +319,72 @@ export function renderAdminPage(container: HTMLElement): void {
     confirmDelete([...selected], '');
   });
 
+  function openEditBookForm(book: Book, onSaved: () => void): void {
+    const bookForm = createBookForm(book, authors, categories);
+
+    let modal: OpenModal;
+    modal = openModal({
+      title: 'Edit book',
+      testId: 'book-form-modal',
+      content: bookForm.element,
+      actions: [
+        {
+          label: 'Cancel',
+          variant: 'secondary',
+          testId: 'book-form-cancel',
+          onClick: () => modal.close(),
+        },
+        {
+          label: 'Save changes',
+          variant: 'primary',
+          testId: 'book-form-submit',
+          onClick: () => {
+            void (async () => {
+              const saved = await bookForm.save();
+              if (saved) {
+                showToast('Book updated.', 'success');
+                modal.close();
+                onSaved();
+              }
+            })();
+          },
+        },
+      ],
+    });
+    bookForm.focusFirst();
+  }
+
+  async function loadLookups(): Promise<void> {
+    try {
+      [authors, categories] = await Promise.all([
+        apiClient.listAuthors(),
+        apiClient.listCategories(),
+      ]);
+      authorNames = new Map(authors.map((a) => [a.id, a.name]));
+    } catch {
+      showToast('Could not load authors/categories.', 'error');
+    }
+  }
+
   async function load(): Promise<void> {
     const sort = (sortDir === -1 ? `-${sortKey}` : sortKey) as BooksSort;
     try {
-      const result = await apiClient.listBooks({ page: 1, limit: PAGE_SIZE, sort });
+      const result = await apiClient.listBooks({ page, limit, sort });
       currentBooks = result.books;
+      page = result.pagination.page;
+      limit = result.pagination.limit;
+      total = result.pagination.total;
+      totalPages = result.pagination.totalPages;
+      selected.clear();
       renderHeader();
       renderRows();
       updateBulkBar();
+      updatePaginationBar();
     } catch {
       showToast('Could not load books.', 'error');
     }
   }
 
-  load();
+  void loadLookups();
+  void load();
 }
