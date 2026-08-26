@@ -343,8 +343,14 @@ export function renderBooksPage(container: HTMLElement): () => void {
 
     const title = document.createElement('h2');
     title.className = 'book-card__title';
-    title.textContent = book.title;
     titleRow.appendChild(title);
+
+    const titleLink = document.createElement('a');
+    titleLink.href = `/books/${book.id}`;
+    titleLink.dataset.link = '';
+    titleLink.setAttribute('data-testid', 'book-card-link');
+    titleLink.textContent = book.title;
+    title.appendChild(titleLink);
 
     const infoBtn = document.createElement('button');
     infoBtn.type = 'button';

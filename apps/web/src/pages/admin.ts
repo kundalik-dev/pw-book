@@ -1,6 +1,5 @@
-import type { AdminBookSort } from '../api/extraClient';
-import { deleteBookAdmin, listBooksSorted } from '../api/extraClient';
-import type { Book } from '../api/types';
+import { apiClient } from '../api/client';
+import type { Book, BooksSort } from '../api/types';
 import { openConfirmModal } from '../components/modal';
 import { showToast } from '../components/toast';
 import { navigate } from '../router/router';
@@ -143,7 +142,7 @@ export function renderAdminPage(container: HTMLElement): void {
       row.appendChild(yearTd);
 
       const addedTd = document.createElement('td');
-      addedTd.textContent = '—';
+      addedTd.textContent = new Date(book.createdAt).toLocaleDateString();
       row.appendChild(addedTd);
 
       const actionsTd = document.createElement('td');
@@ -176,7 +175,7 @@ export function renderAdminPage(container: HTMLElement): void {
           : `Delete ${ids.length} books? This can't be undone.`,
       onConfirm: async () => {
         try {
-          for (const id of ids) await deleteBookAdmin(id);
+          for (const id of ids) await apiClient.deleteBook(id);
           for (const id of ids) selected.delete(id);
           showToast(ids.length === 1 ? 'Book deleted.' : `${ids.length} books deleted.`, 'success');
           await load();
@@ -192,9 +191,9 @@ export function renderAdminPage(container: HTMLElement): void {
   });
 
   async function load(): Promise<void> {
-    const sort = (sortDir === -1 ? `-${sortKey}` : sortKey) as AdminBookSort;
+    const sort = (sortDir === -1 ? `-${sortKey}` : sortKey) as BooksSort;
     try {
-      const result = await listBooksSorted({ page: 1, limit: PAGE_SIZE, sort });
+      const result = await apiClient.listBooks({ page: 1, limit: PAGE_SIZE, sort });
       currentBooks = result.books;
       renderHeader();
       renderRows();

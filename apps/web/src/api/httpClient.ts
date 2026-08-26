@@ -3,11 +3,15 @@ import type {
   ApiClient,
   Author,
   AuthResult,
+  Book,
   Category,
+  CreateReviewInput,
   ListBooksParams,
+  Loan,
   LoginInput,
   PaginatedBooks,
   RegisterInput,
+  Review,
   User,
 } from './types';
 import { ApiError } from './types';
@@ -56,6 +60,47 @@ export class HttpApiClient implements ApiClient {
       method: 'GET',
     });
     return categories;
+  }
+
+  async getBook(id: number): Promise<Book> {
+    const { book } = await this.request<{ book: Book }>(`/books/${id}`, { method: 'GET' });
+    return book;
+  }
+
+  async deleteBook(id: number): Promise<void> {
+    await this.request<void>(`/books/${id}`, { method: 'DELETE' });
+  }
+
+  async listBookReviews(bookId: number): Promise<Review[]> {
+    const { reviews } = await this.request<{ reviews: Review[] }>(`/books/${bookId}/reviews`, {
+      method: 'GET',
+    });
+    return reviews;
+  }
+
+  async createReview(bookId: number, input: CreateReviewInput): Promise<Review> {
+    const { review } = await this.request<{ review: Review }>(`/books/${bookId}/reviews`, {
+      method: 'POST',
+      body: input,
+    });
+    return review;
+  }
+
+  async deleteReview(id: number): Promise<void> {
+    await this.request<void>(`/reviews/${id}`, { method: 'DELETE' });
+  }
+
+  async createLoan(bookId: number): Promise<Loan> {
+    const { loan } = await this.request<{ loan: Loan }>('/loans', {
+      method: 'POST',
+      body: { bookId },
+    });
+    return loan;
+  }
+
+  async listMyLoans(): Promise<Loan[]> {
+    const { loans } = await this.request<{ loans: Loan[] }>('/loans/me', { method: 'GET' });
+    return loans;
   }
 
   private async request<T>(path: string, options: { method: string; body?: unknown }): Promise<T> {

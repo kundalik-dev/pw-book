@@ -66,5 +66,6 @@ export const mockBooks: Book[] = Array.from({ length: 24 }, (_, i) => {
     coverImageUrl: null,
     totalCopies,
     availableCopies,
+    createdAt: new Date(2024, 0, 1 + i).toISOString(),
   };
 });

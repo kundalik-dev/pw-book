@@ -1,4 +1,4 @@
-import { getBook } from '../api/extraClient';
+import { apiClient } from '../api/client';
 import type { Book } from '../api/types';
 import { showToast } from '../components/toast';
 import { navigate } from '../router/router';
@@ -47,7 +47,7 @@ export function renderWishlistPage(container: HTMLElement): void {
     }
 
     const books = await Promise.all(
-      items.map((item) => getBook(item.bookId).catch((): Book | null => null)),
+      items.map((item) => apiClient.getBook(item.bookId).catch((): Book | null => null)),
     );
 
     items.forEach((item, index) => {

@@ -322,18 +322,94 @@ still works for this UI).
   `npm run dev -w apps/web` — search, each filter control, sort, clear
   filters, tooltips — before fully relying on this UI.
 
-## Phase 9 — Frontend: complex UI
+## Phase 9 — Frontend: complex UI ✅
 
-- [ ] Book detail page: tabs + cover image carousel
-- [ ] Star-rating widget (plain) + a Shadow DOM `<star-rating>` custom
-      element variant
-- [ ] Admin data table: sortable columns, row selection, bulk-delete bar
-- [ ] Modals: confirm-delete, add-to-wishlist
-- [ ] Multi-step borrow/checkout wizard
-- [ ] Drag-and-drop wishlist reordering
-- [ ] Light/dark theme toggle persisted to `localStorage`
-- [ ] `<iframe>` panel (library location placeholder)
-- [ ] One isolated page with a native `confirm()` dialog (delete account)
+- [x] Book detail page: tabs + cover image carousel — `apps/web/src/pages/bookDetail.ts`
+      at `/books/:id` (new dynamic-route support added to `router/router.ts`,
+      `:param` segments). Tabs (Details / Reviews) via new
+      `components/tabs.ts`; cover carousel via new `components/carousel.ts`
+      — since `Book` only has one `coverImageUrl` and no gallery data model,
+      the carousel shows the real cover (if any) plus two clearly-labelled
+      placeholder slides so it's always exercisable with >1 slide. Includes
+      a breadcrumb (Books / title) reusing Phase 8's `.breadcrumbs` styles,
+      folding in the accordion checkbox Phase 8 deferred here (tabs
+      supersede it, per the cross-session coordination note above).
+- [x] Star-rating widget (plain) + a Shadow DOM `<star-rating>` custom
+      element variant — `components/starRating.ts` (interactive, used in
+      the review form and read-only in review display) and
+      `components/starRatingElement.ts` (`customElements.define('star-rating', ...)`,
+      registered in `main.ts`, read-only, genuinely inside a shadow root so
+      Playwright locators must pierce it).
+- [x] Admin data table: sortable columns, row selection, bulk-delete bar —
+      `pages/admin.ts` at `/admin` (admin-role-gated, redirects otherwise).
+      Sortable Title/Published/Added columns via `apiClient.listBooks({ sort })`;
+      row + select-all checkboxes; bulk-delete bar appears on selection,
+      confirms via the new modal, calls `apiClient.deleteBook` per row.
+- [x] Modals: confirm-delete, add-to-wishlist — new `components/modal.ts`
+      (generic `openModal` + `openConfirmModal` helper), used by both the
+      admin table's delete flow and the book detail page's "Add to
+      wishlist" button.
+- [x] Multi-step borrow/checkout wizard — `pages/borrow.ts` at
+      `/borrow/:bookId`: select (book summary) → confirm (agree checkbox)
+      → due-date review (client-estimated, `LOAN_PERIOD_DAYS = 14` mirrored
+      from the API's `repositories/loans.ts` constant) → success (real
+      server-returned loan id/due date after `apiClient.createLoan`).
+- [x] Drag-and-drop wishlist reordering — `pages/wishlist.ts` at
+      `/wishlist`, native HTML5 drag-and-drop. Wishlist itself is
+      client-only (`state/wishlist.ts`, `localStorage`) — `docs/features.md`
+      lists a `WishlistItem` domain model and `WishlistItems` migration
+      table exists, but no backend endpoints for it were ever in scope
+      (not listed under "Backend APIs" in `docs/features.md`, and Phases
+      4/5 never added any) — treated that as intentional rather than a gap
+      to fill in this phase.
+- [x] Light/dark theme toggle persisted to `localStorage` — `state/theme.ts`
+      + a toggle button in the navbar; dark-mode variable overrides live in
+      `styles/phase9.css` under `:root[data-theme="dark"]`.
+- [x] `<iframe>` panel (library location placeholder) — on the book detail
+      page, embedding a static local `apps/web/public/library-location.html`
+      (kept local/offline rather than a real map, matching this app's
+      no-external-network-dependency practice-target ethos).
+- [x] One isolated page with a native `confirm()` dialog (delete account) —
+      `pages/deleteAccount.ts` at `/account/delete`, reachable from the
+      navbar account dropdown. No `DELETE /api/users/:id` endpoint exists
+      (out of scope per `docs/features.md`), so confirming only clears the
+      local session — it doesn't touch the backend.
+
+  **Cross-session coordination:** this phase ran concurrently with another
+  session's Phase 8 work in the same working tree. New standalone files
+  (pages, components, `state/theme.ts`, `state/wishlist.ts`) were built
+  first to avoid touching shared files. `router.ts`/`main.ts`/`navbar.ts`
+  were reserved for this phase from the start (Phase 8 deliberately left
+  them alone). Once Phase 8 finished and released `api/{types,client,
+  httpClient}.ts` and `api/mock/{mockClient,mockData}.ts`, `getBook`/
+  `deleteBook`/`listBookReviews`/`createReview`/`deleteReview`/`createLoan`/
+  `listMyLoans` were folded into the shared `ApiClient` interface (real +
+  mock implementations) instead of staying in a temporary standalone
+  module — along with adding `createdAt` to the `Book` type (the API
+  already returned it; the frontend type just hadn't caught up) and
+  extending `BooksSort` with `createdAt`/`-createdAt` (already
+  backend-whitelisted per Phase 4, just not yet exposed on the frontend
+  type). Also wired the book-grid card title to link to `/books/:id`
+  (Phase 8 built the grid before this route existed, and left that hookup
+  for this phase).
+
+  **Verified:** clean `tsc --noEmit`, clean `biome check`, clean
+  `vite build`. Live-curl-verified against the running API (not just the
+  mock): `GET /api/books/:id`, `GET /api/books/:id/reviews`, sorted
+  `GET /api/books?sort=...` (including `-publishedYear`), `POST /api/loans`
+  → `PUT /api/loans/:id/return`, and `POST /api/books/:id/reviews` →
+  `DELETE /api/reviews/:id` — all response shapes match the frontend types
+  exactly; test loan/review data created during verification was cleaned
+  up (loan returned, review deleted) afterward.
+
+  **Not yet click-tested in an actual browser** — no Chrome extension
+  connection was available this session (same limitation as Phases 6-8).
+  Before fully relying on this UI, load `npm run dev -w apps/web` and
+  check: book card → detail page (carousel arrows/dots, tab switching,
+  submitting a star-rated review) → borrow wizard all 4 steps → wishlist
+  add/drag-reorder/remove → admin table sort/select/bulk-delete (as an
+  admin user) → theme toggle persists across reload → delete-account's
+  `confirm()` dialog.
 
 ## Phase 10 — Seed data & fixtures polish ✅
 

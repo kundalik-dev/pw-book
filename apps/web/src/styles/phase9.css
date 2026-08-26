@@ -26,24 +26,8 @@
   color: var(--color-text);
 }
 
-/* Breadcrumbs */
-
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  margin-bottom: 1rem;
-}
-
-.breadcrumbs a {
-  color: var(--color-text-muted);
-}
-
-.breadcrumbs__current {
-  color: var(--color-text);
-}
+/* Breadcrumbs: .breadcrumbs / .breadcrumbs__current already styled in
+   style.css (added during Phase 8) — book-detail.ts reuses those classes. */
 
 /* Star rating */
 

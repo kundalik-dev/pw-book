@@ -65,6 +65,54 @@ connection pool on transient failures rather than crashing (Phase 2, done).
     connection was available this session, so the UI itself (as opposed
     to the API contract) is only compile/build/curl-verified. Click
     through `npm run dev -w apps/web` before fully relying on it.
+- **`apps/web` (Phase 8, intermediate UI) is done except the accordion**,
+  built entirely on the books list page (`apps/web/src/pages/books.ts`):
+  debounced search with an autocomplete dropdown, a filter sidebar
+  (category checkboxes, availability radios, a published-year range
+  slider, a multi-select author dropdown, "Clear filters"), a sort
+  dropdown, breadcrumbs, and a CSS-only tooltip (a real DOM element, not
+  a native `title` attribute) on each book card's info icon. The
+  "Accordion on book detail sections" checkbox is deliberately left for
+  Phase 9 — coordinated live with the session building the book detail
+  page so Phase 9's tabs own that page's section structure outright
+  instead of this phase building a throwaway accordion-only page first.
+  Required an additive `GET /api/books` extension: `category`/`author`
+  now accept repeated query params (array, `IN (...)` match, single value
+  still works unchanged) and `yearMin`/`yearMax` were added alongside the
+  existing exact-match `year`. Full detail in
+  `docs/tasks/01-mvp-build-plan.md` (Phase 8 section), including the
+  curl-verified filter matrix.
+  - **Also not yet click-tested in a real browser**, same reason as
+    Phase 6-7 above — verified via clean `tsc -b --force`/`tsc`, `biome
+    check`, and curl against the live API only.
+  - **Built in parallel with another session working Phase 9 in this same
+    working tree** — coordinated via cross-session messages on which
+    files each session owns (this phase: `books.ts`, `api/{types,client,
+    httpClient}.ts`, `api/mock/*`, the books schema/repo, `style.css`;
+    Phase 9: `router.ts`, `main.ts`, `navbar.ts`, new standalone page/
+    component files) to avoid clobbering concurrent edits to shared
+    files. Mention this to the user if anything here looks like it was
+    changed by someone other than the session they're talking to.
+- **`apps/web` (Phase 9, complex UI) is done.** Book detail page at
+  `/books/:id` (tabs, cover carousel, star ratings, reviews, "Add to
+  wishlist"), `/borrow/:bookId` multi-step checkout wizard, `/wishlist`
+  (drag-and-drop reorder, `localStorage`-backed — no backend wishlist API
+  exists or was ever in scope, see `docs/features.md`), `/admin` sortable
+  data table with bulk-delete, a light/dark theme toggle, a
+  `<star-rating>` Shadow DOM custom element, an `<iframe>` library-location
+  panel, and an isolated `/account/delete` page with the app's one
+  deliberate native `confirm()`. Added `:param` dynamic-route support to
+  `router/router.ts` (previously exact-match only). Once Phase 8 released
+  the shared API files, folded `getBook`/`deleteBook`/review/loan calls
+  into the real `ApiClient` (real + mock) rather than keeping them in a
+  temporary standalone module, and added `Book.createdAt` (the API already
+  returned it) plus `createdAt`/`-createdAt` to `BooksSort`. Full detail in
+  `docs/tasks/01-mvp-build-plan.md` (Phase 9 section), including the
+  curl-verified endpoint matrix.
+  - **Also not yet click-tested in a real browser**, same reason as
+    Phases 6-8 above — verified via clean `tsc --noEmit`, `biome check`,
+    `vite build`, and curl against the live API (including a create/return
+    loan and create/delete review round-trip, cleaned up afterward).
 - **`apps/api` (Phases 2-5) is built and verified end-to-end against the
   live local SQL Server instance** — the Phase 1 login blocker below was
   resolved and the DB is now migrated + seeded. `/api/health` and

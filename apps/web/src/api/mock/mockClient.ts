@@ -3,11 +3,15 @@ import type {
   ApiClient,
   Author,
   AuthResult,
+  Book,
   Category,
+  CreateReviewInput,
   ListBooksParams,
+  Loan,
   LoginInput,
   PaginatedBooks,
   RegisterInput,
+  Review,
   User,
 } from '../types';
 import { ApiError } from '../types';
@@ -39,8 +43,15 @@ function userIdFromToken(token: string): string | null {
  * Mutates in-memory copies so register/login feel real across a session, but
  * nothing persists past a page reload.
  */
+const MOCK_LOAN_PERIOD_DAYS = 14;
+
 export class MockApiClient implements ApiClient {
   private users: MockUserRecord[] = [...mockUsers];
+  private books: Book[] = [...mockBooks];
+  private reviews: Review[] = [];
+  private loans: Loan[] = [];
+  private nextReviewId = 1;
+  private nextLoanId = 1;
 
   async register(input: RegisterInput): Promise<AuthResult> {
     if (this.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
@@ -83,7 +94,7 @@ export class MockApiClient implements ApiClient {
     const limit = params.limit ?? 8;
     const q = params.q?.trim().toLowerCase();
 
-    let filtered = mockBooks.filter((b) => {
+    let filtered = this.books.filter((b) => {
       if (q) {
         const authorName = mockAuthors.find((a) => a.id === b.authorId)?.name ?? '';
         const matchesQ =
@@ -117,6 +128,10 @@ export class MockApiClient implements ApiClient {
           return (a.publishedYear ?? 0) - (b.publishedYear ?? 0);
         case '-publishedYear':
           return (b.publishedYear ?? 0) - (a.publishedYear ?? 0);
+        case 'createdAt':
+          return a.createdAt.localeCompare(b.createdAt);
+        case '-createdAt':
+          return b.createdAt.localeCompare(a.createdAt);
         default:
           return a.title.localeCompare(b.title);
       }
@@ -142,6 +157,70 @@ export class MockApiClient implements ApiClient {
 
   async listCategories(): Promise<Category[]> {
     return delay([...mockCategories]);
+  }
+
+  async getBook(id: number): Promise<Book> {
+    const book = this.books.find((b) => b.id === id);
+    if (!book) throw new ApiError('Book not found', 'BOOK_NOT_FOUND');
+    return delay(book);
+  }
+
+  async deleteBook(id: number): Promise<void> {
+    this.books = this.books.filter((b) => b.id !== id);
+    return delay(undefined);
+  }
+
+  async listBookReviews(bookId: number): Promise<Review[]> {
+    return delay(this.reviews.filter((r) => r.bookId === bookId));
+  }
+
+  async createReview(bookId: number, input: CreateReviewInput): Promise<Review> {
+    const userId = this.requireUserId();
+    if (this.reviews.some((r) => r.bookId === bookId && r.userId === userId)) {
+      throw new ApiError('You have already reviewed this book', 'REVIEW_ALREADY_EXISTS');
+    }
+    const review: Review = {
+      id: this.nextReviewId++,
+      bookId,
+      userId,
+      rating: input.rating,
+      comment: input.comment ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    this.reviews.unshift(review);
+    return delay(review);
+  }
+
+  async deleteReview(id: number): Promise<void> {
+    this.reviews = this.reviews.filter((r) => r.id !== id);
+    return delay(undefined);
+  }
+
+  async createLoan(bookId: number): Promise<Loan> {
+    const userId = this.requireUserId();
+    const loan: Loan = {
+      id: this.nextLoanId++,
+      bookId,
+      userId,
+      borrowedAt: new Date().toISOString(),
+      dueAt: new Date(Date.now() + MOCK_LOAN_PERIOD_DAYS * 86_400_000).toISOString(),
+      returnedAt: null,
+      status: 'active',
+    };
+    this.loans.push(loan);
+    return delay(loan);
+  }
+
+  async listMyLoans(): Promise<Loan[]> {
+    const userId = this.requireUserId();
+    return delay(this.loans.filter((l) => l.userId === userId));
+  }
+
+  private requireUserId(): number {
+    const auth = getAuthState();
+    if (!auth) throw new ApiError('Not authenticated.', 'UNAUTHENTICATED');
+    const userId = userIdFromToken(auth.accessToken);
+    return Number(userId) || 1;
   }
 
   private toAuthResult(record: MockUserRecord): AuthResult {

@@ -1,4 +1,4 @@
-import { createLoan, getBook } from '../api/extraClient';
+import { apiClient } from '../api/client';
 import type { Book } from '../api/types';
 import { ApiError } from '../api/types';
 import { showToast } from '../components/toast';
@@ -164,7 +164,7 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
     confirmBtn.addEventListener('click', async () => {
       confirmBtn.disabled = true;
       try {
-        const loan = await createLoan(bookId);
+        const loan = await apiClient.createLoan(bookId);
         loanResult = { id: loan.id, dueAt: loan.dueAt };
         goToStep(3);
       } catch (err) {
@@ -197,7 +197,7 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
 
   async function init(): Promise<void> {
     try {
-      book = await getBook(bookId);
+      book = await apiClient.getBook(bookId);
       loading.remove();
       renderStepper();
       renderStepBody();

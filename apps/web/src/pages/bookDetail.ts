@@ -1,6 +1,5 @@
 import { apiClient } from '../api/client';
-import { createReview, getBook, listBookReviews, type Review } from '../api/extraClient';
-import type { Book } from '../api/types';
+import type { Book, Review } from '../api/types';
 import { ApiError } from '../api/types';
 import { createCarousel } from '../components/carousel';
 import { openModal } from '../components/modal';
@@ -32,7 +31,7 @@ export function renderBookDetailPage(container: HTMLElement, params: Record<stri
   async function init(): Promise<void> {
     try {
       const [book, authors, categories] = await Promise.all([
-        getBook(bookId),
+        apiClient.getBook(bookId),
         apiClient.listAuthors(),
         apiClient.listCategories(),
       ]);
@@ -120,7 +119,14 @@ export function renderBookDetailPage(container: HTMLElement, params: Record<stri
     wishlistBtn.setAttribute('aria-label', 'Add to wishlist');
     wishlistBtn.textContent = isWishlisted(book.id) ? 'On your wishlist' : 'Add to wishlist';
     wishlistBtn.disabled = isWishlisted(book.id);
-    wishlistBtn.addEventListener('click', () => openAddToWishlistModal(book, wishlistBtn));
+    wishlistBtn.addEventListener('click', () => {
+      if (!getAuthState()) {
+        showToast('Log in to use your wishlist.', 'error');
+        navigate('/login');
+        return;
+      }
+      openAddToWishlistModal(book, wishlistBtn);
+    });
     actions.appendChild(wishlistBtn);
 
     const tabs = createTabs({
@@ -217,7 +223,7 @@ export function renderBookDetailPage(container: HTMLElement, params: Record<stri
 
     async function loadReviews(): Promise<void> {
       try {
-        const reviews = await listBookReviews(book.id);
+        const reviews = await apiClient.listBookReviews(book.id);
         status.remove();
         list.innerHTML = '';
         if (reviews.length === 0) {
@@ -289,7 +295,10 @@ export function renderBookDetailPage(container: HTMLElement, params: Record<stri
         }
         submit.disabled = true;
         try {
-          await createReview(book.id, { rating, comment: comment.value.trim() || undefined });
+          await apiClient.createReview(book.id, {
+            rating,
+            comment: comment.value.trim() || undefined,
+          });
           showToast('Review submitted.', 'success');
           form.reset();
           stars.setValue(0);

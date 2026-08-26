@@ -24,6 +24,7 @@ export interface Book {
   coverImageUrl: string | null;
   totalCopies: number;
   availableCopies: number;
+  createdAt: string;
 }
 
 export interface Author {
@@ -49,7 +50,13 @@ export interface PaginatedBooks {
   pagination: BooksPagination;
 }
 
-export type BooksSort = 'title' | '-title' | 'publishedYear' | '-publishedYear';
+export type BooksSort =
+  | 'title'
+  | '-title'
+  | 'publishedYear'
+  | '-publishedYear'
+  | 'createdAt'
+  | '-createdAt';
 
 export interface ListBooksParams {
   page?: number;
@@ -61,6 +68,30 @@ export interface ListBooksParams {
   yearMin?: number;
   yearMax?: number;
   available?: boolean;
+}
+
+export interface Review {
+  id: number;
+  bookId: number;
+  userId: number;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface CreateReviewInput {
+  rating: number;
+  comment?: string;
+}
+
+export interface Loan {
+  id: number;
+  bookId: number;
+  userId: number;
+  borrowedAt: string;
+  dueAt: string;
+  returnedAt: string | null;
+  status: 'active' | 'returned' | 'overdue';
 }
 
 export interface RegisterInput {
@@ -91,4 +122,11 @@ export interface ApiClient {
   listBooks(params: ListBooksParams): Promise<PaginatedBooks>;
   listAuthors(): Promise<Author[]>;
   listCategories(): Promise<Category[]>;
+  getBook(id: number): Promise<Book>;
+  deleteBook(id: number): Promise<void>;
+  listBookReviews(bookId: number): Promise<Review[]>;
+  createReview(bookId: number, input: CreateReviewInput): Promise<Review>;
+  deleteReview(id: number): Promise<void>;
+  createLoan(bookId: number): Promise<Loan>;
+  listMyLoans(): Promise<Loan[]>;
 }
