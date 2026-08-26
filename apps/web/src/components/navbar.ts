@@ -1,5 +1,7 @@
 import { navigate } from '../router/router';
 import { clearAuthState, getAuthState, onAuthChange } from '../state/auth';
+import { getTheme, toggleTheme } from '../state/theme';
+import '../styles/phase9.css';
 import { showToast } from './toast';
 
 export function mountNavbar(target: HTMLElement): void {
@@ -24,6 +26,25 @@ export function mountNavbar(target: HTMLElement): void {
     links.appendChild(createNavLink('/books', 'Books'));
 
     const auth = getAuthState();
+    if (auth) {
+      links.appendChild(createNavLink('/wishlist', 'Wishlist'));
+      if (auth.user.role === 'admin') {
+        links.appendChild(createNavLink('/admin', 'Admin'));
+      }
+    }
+
+    const themeToggle = document.createElement('button');
+    themeToggle.type = 'button';
+    themeToggle.className = 'theme-toggle';
+    themeToggle.setAttribute('data-testid', 'theme-toggle');
+    themeToggle.setAttribute('aria-label', 'Toggle light/dark theme');
+    themeToggle.textContent = getTheme() === 'dark' ? '☀️' : '🌙';
+    themeToggle.addEventListener('click', () => {
+      const next = toggleTheme();
+      themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+    links.appendChild(themeToggle);
+
     if (auth) {
       const account = document.createElement('div');
       account.className = 'navbar__account';
@@ -56,6 +77,14 @@ export function mountNavbar(target: HTMLElement): void {
         navigate('/login');
       });
       dropdown.appendChild(logoutBtn);
+
+      const deleteAccountLink = document.createElement('a');
+      deleteAccountLink.href = '/account/delete';
+      deleteAccountLink.dataset.link = '';
+      deleteAccountLink.className = 'navbar__dropdown-item';
+      deleteAccountLink.textContent = 'Delete account';
+      deleteAccountLink.setAttribute('data-testid', 'delete-account-link');
+      dropdown.appendChild(deleteAccountLink);
 
       account.appendChild(dropdown);
 

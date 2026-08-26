@@ -1,0 +1,454 @@
+/* Phase 9 — Frontend: complex UI. Kept as its own stylesheet (imported
+   side-effect-style from each Phase 9 page/component) rather than appended to
+   style.css, since Phase 8 work was concurrently editing that file. */
+
+/* Dark theme overrides — higher specificity than style.css's bare :root, so
+   load order doesn't matter. */
+:root[data-theme="dark"] {
+  --color-bg: #17181c;
+  --color-surface: #1f2126;
+  --color-border: #33353c;
+  --color-text: #f0f0f2;
+  --color-text-muted: #a0a2ab;
+  --color-primary: #6c8fef;
+  --color-primary-hover: #8aa5f3;
+  --color-success: #3ecb7c;
+  --color-error: #ef6a5f;
+}
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text);
+}
+
+/* Breadcrumbs */
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+.breadcrumbs a {
+  color: var(--color-text-muted);
+}
+
+.breadcrumbs__current {
+  color: var(--color-text);
+}
+
+/* Star rating */
+
+.star-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star-rating__star {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: #d0d0d6;
+  cursor: pointer;
+  padding: 0;
+}
+
+.star-rating__star:disabled {
+  cursor: default;
+}
+
+.star-rating__star--filled {
+  color: #f2a900;
+}
+
+/* Modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal__close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+.modal__body {
+  padding: 0.5rem 1.25rem 1rem;
+}
+
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+/* Carousel */
+
+.carousel {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.carousel__track {
+  display: flex;
+  transition: transform 0.25s ease;
+}
+
+.carousel__slide {
+  flex: 0 0 100%;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel__slide img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.book-detail__placeholder-slide {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.carousel__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.carousel__nav--prev {
+  left: 0.5rem;
+}
+
+.carousel__nav--next {
+  right: 0.5rem;
+}
+
+.carousel__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+}
+
+.carousel__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.carousel__dot--active {
+  background: var(--color-primary);
+}
+
+/* Tabs */
+
+.tabs__list {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-top: 1.5rem;
+}
+
+.tabs__tab {
+  background: none;
+  border: none;
+  padding: 0.6rem 0.2rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+}
+
+.tabs__tab--active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
+.tabs__panel {
+  padding-top: 1rem;
+}
+
+/* Book detail page */
+
+.book-detail__layout {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.book-detail__main {
+  flex: 1;
+  min-width: 260px;
+}
+
+.book-detail__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.book-detail__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+}
+
+.book-detail__facts dt {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.book-detail__facts dd {
+  margin: 0;
+}
+
+.book-detail__description {
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+/* Reviews */
+
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.review-list__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.review-list__comment {
+  margin: 0.4rem 0 0;
+}
+
+.review-list__date {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.review-list__empty {
+  color: var(--color-text-muted);
+}
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 420px;
+}
+
+.review-form textarea {
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  min-height: 80px;
+}
+
+/* Library location panel */
+
+.library-location {
+  margin-top: 2rem;
+}
+
+.library-location__frame {
+  width: 100%;
+  max-width: 480px;
+  height: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+/* Borrow wizard */
+
+.wizard-steps {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 1.5rem;
+}
+
+.wizard-steps__item {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.wizard-steps__item--active {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.wizard-steps__item--done {
+  color: var(--color-success);
+}
+
+.wizard-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 420px;
+}
+
+.wizard-agree {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wizard-nav {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* Admin table */
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  margin: 1rem 0;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table__sort-btn {
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  color: var(--color-text);
+}
+
+/* Wishlist */
+
+.wishlist-page__hint {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.wishlist-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 480px;
+}
+
+.wishlist-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  background: var(--color-surface);
+  cursor: grab;
+}
+
+.wishlist-list__item--dragging {
+  opacity: 0.5;
+}
+
+.wishlist-list__item--drop-target {
+  border-color: var(--color-primary);
+}
+
+/* Delete account */
+
+.delete-account-page {
+  max-width: 420px;
+}

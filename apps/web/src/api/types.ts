@@ -49,10 +49,18 @@ export interface PaginatedBooks {
   pagination: BooksPagination;
 }
 
+export type BooksSort = 'title' | '-title' | 'publishedYear' | '-publishedYear';
+
 export interface ListBooksParams {
   page?: number;
   limit?: number;
   q?: string;
+  sort?: BooksSort;
+  category?: number[];
+  author?: number[];
+  yearMin?: number;
+  yearMax?: number;
+  available?: boolean;
 }
 
 export interface RegisterInput {

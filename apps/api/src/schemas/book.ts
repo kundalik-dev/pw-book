@@ -53,15 +53,29 @@ export const bulkImportRowSchema = z.object({
   totalCopies: z.string().trim().optional().default(''),
 });
 
+// Accepts either a single value or repeated query params (?category=1&category=2)
+// and normalizes to an array, so the filter sidebar's checkboxes/multi-select
+// can send one or many ids without a separate "plural" param name.
+function toIdArray(val: unknown): unknown {
+  if (val === undefined) return undefined;
+  return Array.isArray(val) ? val : [val];
+}
+
+const idListSchema = z
+  .preprocess(toIdArray, z.array(z.coerce.number().int().positive()))
+  .optional();
+
 export const listBooksQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   sort: z
     .enum(['title', '-title', 'publishedYear', '-publishedYear', 'createdAt', '-createdAt'])
     .default('title'),
-  category: z.coerce.number().int().positive().optional(),
-  author: z.coerce.number().int().positive().optional(),
+  category: idListSchema,
+  author: idListSchema,
   year: z.coerce.number().int().optional(),
+  yearMin: z.coerce.number().int().optional(),
+  yearMax: z.coerce.number().int().optional(),
   available: z
     .enum(['true', 'false'])
     .optional()

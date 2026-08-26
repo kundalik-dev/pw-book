@@ -83,12 +83,44 @@ export class MockApiClient implements ApiClient {
     const limit = params.limit ?? 8;
     const q = params.q?.trim().toLowerCase();
 
-    const filtered = q
-      ? mockBooks.filter((b) => {
-          const authorName = mockAuthors.find((a) => a.id === b.authorId)?.name ?? '';
-          return b.title.toLowerCase().includes(q) || authorName.toLowerCase().includes(q);
-        })
-      : mockBooks;
+    let filtered = mockBooks.filter((b) => {
+      if (q) {
+        const authorName = mockAuthors.find((a) => a.id === b.authorId)?.name ?? '';
+        const matchesQ =
+          b.title.toLowerCase().includes(q) ||
+          authorName.toLowerCase().includes(q) ||
+          b.isbn.toLowerCase().includes(q);
+        if (!matchesQ) return false;
+      }
+      if (params.category?.length && !params.category.some((id) => b.categoryIds.includes(id))) {
+        return false;
+      }
+      if (params.author?.length && !params.author.includes(b.authorId)) return false;
+      if (params.available !== undefined) {
+        const isAvailable = b.availableCopies > 0;
+        if (isAvailable !== params.available) return false;
+      }
+      if (params.yearMin !== undefined && (b.publishedYear ?? -Infinity) < params.yearMin) {
+        return false;
+      }
+      if (params.yearMax !== undefined && (b.publishedYear ?? Infinity) > params.yearMax) {
+        return false;
+      }
+      return true;
+    });
+
+    filtered = [...filtered].sort((a, b) => {
+      switch (params.sort) {
+        case '-title':
+          return b.title.localeCompare(a.title);
+        case 'publishedYear':
+          return (a.publishedYear ?? 0) - (b.publishedYear ?? 0);
+        case '-publishedYear':
+          return (b.publishedYear ?? 0) - (a.publishedYear ?? 0);
+        default:
+          return a.title.localeCompare(b.title);
+      }
+    });
 
     const start = (page - 1) * limit;
     const books = filtered.slice(start, start + limit);

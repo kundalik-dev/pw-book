@@ -105,9 +105,11 @@ export interface ListBooksFilters {
   page: number;
   limit: number;
   sort: string;
-  category?: number;
-  author?: number;
+  category?: number[];
+  author?: number[];
   year?: number;
+  yearMin?: number;
+  yearMax?: number;
   available?: boolean;
   q?: string;
 }
@@ -121,26 +123,44 @@ const SORT_COLUMNS: Record<string, string> = {
   '-createdAt': 'CreatedAt DESC',
 };
 
+// id[] filters are bound as @prefix0, @prefix1, ... on each request; the
+// placeholder list below must use the same naming so it matches whichever
+// request (count or list) the resulting WHERE-clause text is later run
+// against — see bindFilterInputs.
+function idPlaceholders(prefix: string, ids: number[]): string {
+  return ids.map((_, i) => `@${prefix}${i}`).join(', ');
+}
+
+function bindIdList(request: sql.Request, prefix: string, ids: number[]): void {
+  for (const [i, id] of ids.entries()) request.input(`${prefix}${i}`, sql.Int, id);
+}
+
 function bindFilterInputs(request: sql.Request, filters: ListBooksFilters): void {
-  if (filters.category !== undefined) request.input('category', sql.Int, filters.category);
-  if (filters.author !== undefined) request.input('author', sql.Int, filters.author);
+  if (filters.category?.length) bindIdList(request, 'category', filters.category);
+  if (filters.author?.length) bindIdList(request, 'author', filters.author);
   if (filters.year !== undefined) request.input('year', sql.Int, filters.year);
+  if (filters.yearMin !== undefined) request.input('yearMin', sql.Int, filters.yearMin);
+  if (filters.yearMax !== undefined) request.input('yearMax', sql.Int, filters.yearMax);
   if (filters.q !== undefined) request.input('q', sql.NVarChar(200), `%${filters.q}%`);
 }
 
 function buildWhereClause(filters: ListBooksFilters): string {
   const conditions: string[] = [];
-  if (filters.author !== undefined) conditions.push('b.AuthorId = @author');
+  if (filters.author?.length) {
+    conditions.push(`b.AuthorId IN (${idPlaceholders('author', filters.author)})`);
+  }
   if (filters.year !== undefined) conditions.push('b.PublishedYear = @year');
+  if (filters.yearMin !== undefined) conditions.push('b.PublishedYear >= @yearMin');
+  if (filters.yearMax !== undefined) conditions.push('b.PublishedYear <= @yearMax');
   if (filters.available !== undefined) {
     conditions.push(filters.available ? 'b.AvailableCopies > 0' : 'b.AvailableCopies = 0');
   }
   if (filters.q !== undefined) {
     conditions.push('(b.Title LIKE @q OR b.Isbn LIKE @q OR b.Description LIKE @q)');
   }
-  if (filters.category !== undefined) {
+  if (filters.category?.length) {
     conditions.push(
-      'EXISTS (SELECT 1 FROM dbo.BookCategories bc WHERE bc.BookId = b.Id AND bc.CategoryId = @category)',
+      `EXISTS (SELECT 1 FROM dbo.BookCategories bc WHERE bc.BookId = b.Id AND bc.CategoryId IN (${idPlaceholders('category', filters.category)}))`,
     );
   }
   return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

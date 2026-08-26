@@ -266,15 +266,61 @@ finish Phase 1. Seeded login for later testing: `admin@pwbooks.test` /
   real 20-book seed set using `pagination.totalPages`; logout clears the
   account dropdown and redirects to /login.
 
-## Phase 8 — Frontend: intermediate UI
+## Phase 8 — Frontend: intermediate UI ✅ (except accordion, see below)
 
-- [ ] Debounced search bar with autocomplete dropdown
-- [ ] Filter sidebar: checkboxes, radio buttons, year range slider,
-      multi-select
-- [ ] Sort dropdown
-- [ ] Breadcrumbs, tooltips
-- [ ] Accordion on book detail sections
-- [ ] Skeleton loaders during fetch
+- [x] Debounced search bar with autocomplete dropdown — `apps/web/src/pages/books.ts`,
+      300ms debounce, dropdown of up to 5 title/author matches, click-to-fill,
+      Enter submits immediately, Escape/outside-click closes it
+- [x] Filter sidebar: checkboxes (category, multi), radio buttons
+      (availability: all/available/unavailable), year range slider (two
+      `<input type="range">`, min/max clamp against each other),
+      multi-select dropdown (authors, native `<select multiple>`) — all in
+      the new `.filters-sidebar`, each control triggers an immediate
+      reset-and-reload; a "Clear filters" button resets everything
+- [x] Sort dropdown — native `<select>`: title A–Z/Z–A, year newest/oldest
+- [x] Breadcrumbs, tooltips — breadcrumb nav (Home / Books) above the
+      heading; each book card has an "ⓘ" icon button with a CSS-only
+      tooltip showing the ISBN (a real DOM element that becomes visible on
+      hover/focus, not a native `title` attribute, so it's meaningfully
+      Playwright-testable)
+- [ ] Accordion on book detail sections — **intentionally deferred to
+      Phase 9.** Coordinated with the session building the book detail
+      page (tabs + carousel): rather than build a throwaway accordion-only
+      detail page here and have Phase 9 replace it, Phase 9 owns the
+      detail page's section structure outright (tabs superseding/including
+      any accordion). No `/books/:id` page or router change was added by
+      this phase.
+- [x] Skeleton loaders during fetch — pre-existing from Phase 6/7, kept and
+      reused for filter/search/sort-triggered reloads too, not just the
+      initial load and "load more"
+
+**Backend extension (additive, needed for the filter sidebar):** the
+`GET /api/books` filters from Phase 4 (`category`, `author`, `year`,
+`available`, `q`) only supported single-value `category`/`author` and an
+exact-match `year`. Extended additively rather than overloaded:
+`category`/`author` now also accept repeated query params
+(`?category=1&category=2`) and are matched via `IN (...)`, coerced to an
+array by a shared Zod preprocessor (`idListSchema` in
+`src/schemas/book.ts`); a single value still works unchanged (backward
+compatible). Added `yearMin`/`yearMax` (inclusive range) alongside the
+existing exact `year`, rather than replacing it. See
+`src/repositories/books.ts` (`bindIdList`/`idPlaceholders`,
+`buildWhereClause`) — verified directly via curl: multi-category,
+multi-author, year-range, `available` + `sort` combos, and combining all
+of the above at once all return correctly filtered/sorted/counted
+results. `apps/web/src/api/{types.ts,httpClient.ts,mock/mockClient.ts}`
+updated to match (`ListBooksParams` gained `sort`, `category: number[]`,
+`author: number[]`, `yearMin`, `yearMax`, `available`; the mock client's
+`listBooks` mirrors the same filter/sort semantics so `VITE_USE_MOCK_API=true`
+still works for this UI).
+
+  **Not yet click-tested in a real browser** — no Chrome extension
+  connection was available this session (same limitation as Phase 6/7).
+  Verified via: clean `tsc -b --force` (web) and `tsc` (api) with zero
+  errors, `biome check` clean, and curl against the live API for every
+  new filter/sort/search combination. Click through
+  `npm run dev -w apps/web` — search, each filter control, sort, clear
+  filters, tooltips — before fully relying on this UI.
 
 ## Phase 9 — Frontend: complex UI
 
@@ -289,11 +335,37 @@ finish Phase 1. Seeded login for later testing: `admin@pwbooks.test` /
 - [ ] `<iframe>` panel (library location placeholder)
 - [ ] One isolated page with a native `confirm()` dialog (delete account)
 
-## Phase 10 — Seed data & fixtures polish
+## Phase 10 — Seed data & fixtures polish ✅
 
-- [ ] Re-check seed data covers: an unavailable book (0 copies), a book with
+- [x] Re-check seed data covers: an unavailable book (0 copies), a book with
       no reviews, a book with many reviews, an overdue loan, a user with an
       active loan — so UI/API edge cases are reachable without manual setup
+
+  Re-verified live against the running local SQL Server instance (not just
+  reading `apps/db/scripts/seed.js`) via ad-hoc queries, then discarded the
+  scratch script — no new migration/seed changes were needed, the Phase 1
+  seed already covers every case:
+  - **0-copy books:** 3 of 20 (`Sense and Sensibility`, `The Bluest Eye`,
+    `1Q84`).
+  - **Zero-review books:** 18 of 20 have no review rows.
+  - **Many-reviews book:** `Pride and Prejudice` has 3 — the maximum
+    possible under the current `Reviews` uniqueness constraint
+    (one review per user per book) with only 3 seeded users, so this is
+    already at ceiling; not a gap.
+  - **Overdue loan:** loan id 2, `alex@pwbooks.test` / `Foundation`, still
+    `active`-shaped but past `DueAt` (borrowed 30 days ago, due 16 days
+    ago) — confirmed genuinely overdue relative to today's date.
+  - **Active loan:** loan id 1, `member@pwbooks.test` / `Pride and
+    Prejudice`.
+
+  **Observation, not fixed (see Phase 8/9 note in "Issues found" below):**
+  the live `Loans` table has 2 extra `returned` rows beyond the 3 from
+  `seed.js` (`member@pwbooks.test` borrowing/returning `Emma` twice, both
+  timestamped today ~14s apart) — almost certainly transient data from a
+  concurrent Phase 8/9 agent exercising the borrow/return flow while this
+  check ran, not a seed-script bug. Left alone since it's plausibly another
+  agent's in-progress verification data; flagging in case it's actually
+  stale residue nobody intends to clean up.
 
 ## Phase 11 — Wiring it all together
 

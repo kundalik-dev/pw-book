@@ -36,6 +36,12 @@ export class HttpApiClient implements ApiClient {
     if (params.page) query.set('page', String(params.page));
     if (params.limit) query.set('limit', String(params.limit));
     if (params.q) query.set('q', params.q);
+    if (params.sort) query.set('sort', params.sort);
+    if (params.yearMin !== undefined) query.set('yearMin', String(params.yearMin));
+    if (params.yearMax !== undefined) query.set('yearMax', String(params.yearMax));
+    if (params.available !== undefined) query.set('available', String(params.available));
+    for (const id of params.category ?? []) query.append('category', String(id));
+    for (const id of params.author ?? []) query.append('author', String(id));
     const qs = query.toString();
     return this.request<PaginatedBooks>(`/books${qs ? `?${qs}` : ''}`, { method: 'GET' });
   }
