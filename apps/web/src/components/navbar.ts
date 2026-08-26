@@ -1,0 +1,98 @@
+import { navigate } from '../router/router';
+import { clearAuthState, getAuthState, onAuthChange } from '../state/auth';
+import { showToast } from './toast';
+
+export function mountNavbar(target: HTMLElement): void {
+  const nav = document.createElement('nav');
+  nav.className = 'navbar';
+  target.appendChild(nav);
+
+  const render = () => {
+    nav.innerHTML = '';
+
+    const brand = document.createElement('a');
+    brand.href = '/books';
+    brand.dataset.link = '';
+    brand.className = 'navbar__brand';
+    brand.textContent = 'pw-books';
+    nav.appendChild(brand);
+
+    const links = document.createElement('div');
+    links.className = 'navbar__links';
+    nav.appendChild(links);
+
+    links.appendChild(createNavLink('/books', 'Books'));
+
+    const auth = getAuthState();
+    if (auth) {
+      const account = document.createElement('div');
+      account.className = 'navbar__account';
+      account.setAttribute('data-testid', 'account-menu');
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'navbar__account-toggle';
+      toggle.textContent = auth.user.name;
+      toggle.setAttribute('aria-expanded', 'false');
+      account.appendChild(toggle);
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'navbar__dropdown';
+      dropdown.hidden = true;
+
+      const emailItem = document.createElement('div');
+      emailItem.className = 'navbar__dropdown-email';
+      emailItem.textContent = auth.user.email;
+      dropdown.appendChild(emailItem);
+
+      const logoutBtn = document.createElement('button');
+      logoutBtn.type = 'button';
+      logoutBtn.className = 'navbar__dropdown-item';
+      logoutBtn.textContent = 'Log out';
+      logoutBtn.setAttribute('data-testid', 'logout-button');
+      logoutBtn.addEventListener('click', () => {
+        clearAuthState();
+        showToast('Logged out.', 'success');
+        navigate('/login');
+      });
+      dropdown.appendChild(logoutBtn);
+
+      account.appendChild(dropdown);
+
+      toggle.addEventListener('click', () => {
+        const isOpen = !dropdown.hidden;
+        dropdown.hidden = isOpen;
+        toggle.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!account.contains(event.target as Node)) {
+          dropdown.hidden = true;
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      links.appendChild(account);
+    } else {
+      links.appendChild(createNavLink('/login', 'Log in'));
+      links.appendChild(createNavLink('/register', 'Register'));
+    }
+  };
+
+  onAuthChange(render);
+  window.addEventListener('app:routechange', render);
+  render();
+}
+
+function createNavLink(path: string, label: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = path;
+  link.dataset.link = '';
+  link.className = 'navbar__link';
+  link.textContent = label;
+  if (window.location.pathname === path) {
+    link.classList.add('navbar__link--active');
+    link.setAttribute('aria-current', 'page');
+  }
+  return link;
+}

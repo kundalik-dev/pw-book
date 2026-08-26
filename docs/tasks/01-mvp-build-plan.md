@@ -3,17 +3,18 @@
 Source of truth for scope: [`docs/features.md`](../features.md). Work top to
 bottom — later phases assume earlier ones are done. Check items off as you go.
 
-## Phase 0 — Repo & tooling bootstrap
+## Phase 0 — Repo & tooling bootstrap ✅
 
-- [ ] `npm init` at root, set up npm workspaces: `apps/*`, `packages/*`
-- [ ] Install & configure Turborepo (`turbo.json` with `dev`, `build`, `lint`,
-      `format`, `test` pipelines; mark `dev` as `persistent`/`cache: false`)
-- [ ] Install & configure Biome at root (`biome.json`) — lint + format,
-      applied across all workspaces; add root `lint` / `format` scripts
-- [ ] Root `.gitignore` (`node_modules`, `dist`, `.env`, `*.log`)
-- [ ] Root `.env.sample` committed; real `.env` gitignored
-- [ ] Verify `npm run dev` at root does nothing yet but resolves (no
-      workspaces wired up) — sanity check before adding apps
+- [x] `npm init` at root, set up npm workspaces: `apps/*`, `packages/*`
+- [x] Install & configure Turborepo (`turbo.json` with `dev`, `build`, `lint`,
+      `test` pipelines; `dev` is `persistent`/`cache: false`)
+- [x] Install & configure Biome at root (`biome.json`) — lint + format,
+      applied across all workspaces; added root `lint` / `format` scripts
+- [x] Root `.gitignore` (`node_modules`, `dist`, `.env`, `*.log`, `.turbo`)
+- [x] Root `.env.sample` present; real `.env` gitignored
+- [x] Verified `npm run dev` / `npm run build` at root resolve cleanly with
+      0 packages (no workspaces wired up yet) — sanity check before adding
+      apps
 
 ## Phase 1 — Database (`apps/db`)
 
@@ -80,17 +81,39 @@ one-time local instance setup (auth mode, login, TCP/IP).
 
 ## Phase 6 — Frontend scaffold (`apps/web`)
 
-- [ ] Vite + vanilla TypeScript project
-- [ ] Minimal client-side router (or plain multi-page app — simpler is fine)
-- [ ] Typed `fetch` API client wrapping the backend base URL from env
-- [ ] Global layout: navbar + page container + toast/alert host
+- [x] Vite + vanilla TypeScript project
+- [x] Minimal client-side router (or plain multi-page app — simpler is fine)
+- [x] Typed `fetch` API client wrapping the backend base URL from env
+- [x] Global layout: navbar + page container + toast/alert host
+
+  Built ahead of the backend (Phases 1-5 aren't done yet — see note below),
+  so `apps/web/src/api/client.ts` selects between a real `HttpApiClient`
+  (fetch-based) and an in-memory `MockApiClient` via `VITE_USE_MOCK_API`
+  (defaults to mock). Both implement the same `ApiClient` interface in
+  `src/api/types.ts`, so switching to the real backend later is a one-line
+  env flip, not a rewrite.
 
 ## Phase 7 — Frontend: simple UI
 
-- [ ] Login / Register pages with inline validation
-- [ ] Navbar with account dropdown, active-link styling
-- [ ] Book list page: grid, "load more" pagination
-- [ ] Toast notifications on success/error
+- [x] Login / Register pages with inline validation
+- [x] Navbar with account dropdown, active-link styling
+- [x] Book list page: grid, "load more" pagination
+- [x] Toast notifications on success/error
+
+  **Not yet verified in a real browser** — the Chrome extension wasn't
+  connected in this session, so this was validated via `tsc`, `biome
+  check`, and `vite build` only, not by clicking through the app. Before
+  trusting this UI, load `npm run dev -w apps/web` and check: register →
+  redirected to /books with a welcome toast; load more paginates the mock
+  24-book set; logout clears the account dropdown and redirects to /login.
+
+  **Needs fixing once Phase 2-5 backend exists:** set
+  `VITE_USE_MOCK_API=false` in `.env`, then re-check `register`/`login`
+  error-code handling in `src/pages/register.ts` and
+  `src/api/httpClient.ts` against the real `{ error: { message, code } }`
+  responses — the mock only exercises the `EMAIL_TAKEN` and
+  `INVALID_CREDENTIALS` codes assumed from `docs/features.md`, not
+  whatever the real API actually returns.
 
 ## Phase 8 — Frontend: intermediate UI
 

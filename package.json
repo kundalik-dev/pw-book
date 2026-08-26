@@ -4,6 +4,7 @@
   "private": true,
   "description": "Library-management app used as a Playwright automation practice target (API, UI, and DB testing).",
   "license": "ISC",
+  "packageManager": "npm@11.9.0",
   "workspaces": [
     "apps/*",
     "packages/*"

@@ -87,6 +87,12 @@ This project is under active build-out. See
 [`docs/tasks/01-mvp-build-plan.md`](docs/tasks/01-mvp-build-plan.md) for the
 current phase and what's left.
 
+`apps/web` (Phases 6-7) is scaffolded with login/register, a book grid with
+"load more," a navbar, and toasts — but `apps/api` and `apps/db` (Phases
+1-5) don't exist yet, so the frontend runs against an in-memory mock API by
+default (`VITE_USE_MOCK_API=true` in `.env.sample`). `npm run dev` at root
+will not yet bring up a working DB/API.
+
 ## License
 
 Personal practice project — no license, not intended for reuse as a product.

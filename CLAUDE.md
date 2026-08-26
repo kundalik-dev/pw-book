@@ -35,6 +35,29 @@ connect check against the local instance) before starting the API and Vite
 dev server together. The API also retries its DB connection pool on
 transient failures rather than crashing.
 
+## Current status
+
+- **`apps/web` (Phases 6-7) is scaffolded and builds/lints/type-checks
+  clean**, but `apps/api` and `apps/db` (Phases 1-5) don't exist yet — the
+  frontend was built ahead of the backend at the user's request. It talks
+  to a swappable `ApiClient` (`apps/web/src/api/client.ts`): an in-memory
+  `MockApiClient` by default, or `HttpApiClient` (real `fetch`, matching
+  the `{ error: { message, code } }` shape) when `VITE_USE_MOCK_API=false`.
+  Implemented so far: login/register with inline validation, navbar with
+  account dropdown, book grid with "load more" pagination, toast
+  notifications.
+- **Known issues / not yet done:**
+  - Not verified in a real browser this session (no Chrome extension
+    connection available) — only `tsc`, `biome check`, and `vite build`
+    were run. Click through `npm run dev -w apps/web` before relying on it.
+  - Once Phases 1-5 land, flip `VITE_USE_MOCK_API=false` and re-check
+    `HttpApiClient` / the register/login error-code handling against the
+    real API — the mock only assumes `EMAIL_TAKEN` and
+    `INVALID_CREDENTIALS` codes from `docs/features.md`, not whatever the
+    real backend actually returns.
+  - `apps/db` and `apps/api` (Phases 1-5) still need to be built before
+    `npm run dev` at root does anything with the DB/API.
+
 ## Conventions
 
 - TypeScript everywhere, `strict: true`. No `any` unless truly justified.
