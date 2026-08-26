@@ -5,11 +5,14 @@ import morgan from 'morgan';
 import { config } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFound';
-import { authorsRouter } from './routes/authors';
 import { authRouter } from './routes/auth';
+import { authorsRouter } from './routes/authors';
 import { booksRouter } from './routes/books';
 import { categoriesRouter } from './routes/categories';
+import { chaosRouter } from './routes/chaos';
 import { healthRouter } from './routes/health';
+import { loansRouter } from './routes/loans';
+import { reviewsRouter } from './routes/reviews';
 
 export function createApp(): Express {
   const app = express();
@@ -24,6 +27,9 @@ export function createApp(): Express {
   app.use('/api', authorsRouter);
   app.use('/api', categoriesRouter);
   app.use('/api', booksRouter);
+  app.use('/api', loansRouter);
+  app.use('/api', reviewsRouter);
+  app.use('/api', chaosRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

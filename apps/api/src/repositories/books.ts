@@ -315,6 +315,82 @@ export async function deleteBook(id: number): Promise<boolean> {
   return (result.rowsAffected[0] ?? 0) > 0;
 }
 
+export interface BookExportRow {
+  id: number;
+  title: string;
+  isbn: string;
+  authorName: string;
+  categoryNames: string[];
+  description: string | null;
+  publishedYear: number | null;
+  totalCopies: number;
+  availableCopies: number;
+}
+
+interface BookExportQueryRow {
+  Id: number;
+  Title: string;
+  Isbn: string;
+  AuthorName: string;
+  Description: string | null;
+  PublishedYear: number | null;
+  TotalCopies: number;
+  AvailableCopies: number;
+}
+
+async function fetchCategoryNamesForBooks(
+  pool: sql.ConnectionPool,
+  bookIds: number[],
+): Promise<Map<number, string[]>> {
+  const map = new Map<number, string[]>();
+  if (bookIds.length === 0) return map;
+
+  const request = pool.request();
+  const placeholders = bookIds.map((id, i) => {
+    request.input(`bookId${i}`, sql.Int, id);
+    return `@bookId${i}`;
+  });
+  const result = await request.query(
+    `SELECT bc.BookId, c.Name AS CategoryName
+     FROM dbo.BookCategories bc
+     JOIN dbo.Categories c ON c.Id = bc.CategoryId
+     WHERE bc.BookId IN (${placeholders.join(', ')})`,
+  );
+  for (const row of result.recordset as { BookId: number; CategoryName: string }[]) {
+    const list = map.get(row.BookId) ?? [];
+    list.push(row.CategoryName);
+    map.set(row.BookId, list);
+  }
+  return map;
+}
+
+export async function listAllBooksForExport(): Promise<BookExportRow[]> {
+  const pool = requirePool();
+  const result = await pool.request().query(
+    `SELECT b.Id, b.Title, b.Isbn, a.Name AS AuthorName, b.Description, b.PublishedYear,
+            b.TotalCopies, b.AvailableCopies
+     FROM dbo.Books b
+     JOIN dbo.Authors a ON a.Id = b.AuthorId
+     ORDER BY b.Title`,
+  );
+  const rows = result.recordset as BookExportQueryRow[];
+  const categoryMap = await fetchCategoryNamesForBooks(
+    pool,
+    rows.map((r) => r.Id),
+  );
+  return rows.map((row) => ({
+    id: row.Id,
+    title: row.Title,
+    isbn: row.Isbn,
+    authorName: row.AuthorName,
+    categoryNames: categoryMap.get(row.Id) ?? [],
+    description: row.Description,
+    publishedYear: row.PublishedYear,
+    totalCopies: row.TotalCopies,
+    availableCopies: row.AvailableCopies,
+  }));
+}
+
 export async function updateAvailability(
   id: number,
   availableCopies: number,

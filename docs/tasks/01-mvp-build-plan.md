@@ -125,13 +125,54 @@ finish Phase 1. Seeded login for later testing: `admin@pwbooks.test` /
   `src/utils/password.ts`, `src/db/refreshTokens.ts`. Added `bcryptjs` and
   `jsonwebtoken` (+ `@types/jsonwebtoken`) to `apps/api/package.json`.
 
-## Phase 4 — Core CRUD APIs
+## Phase 4 — Core CRUD APIs ✅
 
-- [ ] Authors CRUD
-- [ ] Categories CRUD
-- [ ] Books CRUD (list with pagination/sort/filter/search, get-by-id,
-      create/update with Multer cover upload, delete)
-- [ ] `PATCH /api/books/:id/availability`
+- [x] Authors CRUD (`GET /api/authors`, `GET /api/authors/:id`, admin-only
+      `POST`/`PUT`/`DELETE`) — deleting an author still referenced by a book
+      returns 409 `AUTHOR_HAS_BOOKS` (FK violation translated, SQL error 547)
+- [x] Categories CRUD (`GET /api/categories`, `GET /api/categories/:id`,
+      admin-only `POST`/`PUT`/`DELETE`) — duplicate name returns 409
+      `CATEGORY_EXISTS`; deleting a category cascades off `BookCategories`
+      (schema-level `ON DELETE CASCADE`), so it's never blocked
+- [x] Books CRUD:
+      - `GET /api/books` — `page`/`limit` pagination, `sort` (whitelisted
+        `title|-title|publishedYear|-publishedYear|createdAt|-createdAt`),
+        filters (`category`, `author`, `year`, `available=true|false`),
+        full-text `q` (LIKE across title/isbn/description)
+      - `GET /api/books/:id` — 404 `BOOK_NOT_FOUND`
+      - Admin-only `POST /api/books` / `PUT /api/books/:id` — multipart via
+        Multer (`cover` field, JPEG/PNG/WebP, 5MB limit), stored under
+        `apps/api/uploads/covers` and served at `/uploads/covers/<file>`;
+        duplicate ISBN → 409 `BOOK_ISBN_EXISTS`, bad `authorId`/`categoryIds`
+        → 400 `AUTHOR_NOT_FOUND`/`CATEGORY_NOT_FOUND`
+      - Admin-only `DELETE /api/books/:id`
+- [x] Admin-only `PATCH /api/books/:id/availability` — 400
+      `INVALID_AVAILABILITY` if the new value would exceed `totalCopies`
+
+  All mutating routes are gated with the `requireAuth` + `requireRole('admin')`
+  middleware Phase 3 landed (no TODO/placeholder needed — Phase 3 finished
+  before this phase's routes were wired up). New files: `src/repositories/{authors,categories,books}.ts`,
+  `src/schemas/{author,category,book}.ts`, `src/routes/{authors,categories,books}.ts`,
+  `src/middleware/upload.ts`, `src/db/requirePool.ts` (503 `DB_UNAVAILABLE`
+  if a repository call runs while the pool is down). Added `multer` +
+  `@types/multer` to `apps/api/package.json`; added `apps/api/uploads/` to
+  `.gitignore`.
+
+  Verified end-to-end against the live local DB (not just `tsc`/`biome`) via
+  curl against the running dev server: full list/filter/sort/search/paginate
+  matrix, get-by-id + 404, validation errors (bad id, bad `sort` enum) → 400
+  `VALIDATION_ERROR`, unauthenticated admin routes → 401, authenticated admin
+  create/update/delete/patch-availability, duplicate-category 409,
+  over-capacity availability 400, FK-conflict author delete 409, multipart
+  cover upload → file written to disk and served back over `/uploads/...`,
+  bad `authorId` on create → 400. All test data created during verification
+  was deleted afterward.
+
+  **`GET /api/books/export` is intentionally a 501 `NOT_IMPLEMENTED` stub for
+  now** — it's explicit Phase 5 scope (CSV export), not part of this phase.
+  It's registered ahead of `/api/books/:id` so the `:id` route doesn't
+  swallow the `export` path; keep that ordering when Phase 5 implements it
+  for real.
 
 ## Phase 5 — Advanced/workflow APIs
 

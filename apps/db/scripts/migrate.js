@@ -1,7 +1,7 @@
-import sql from 'mssql';
 import { readdir, readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import sql from 'mssql';
 import { getDbConfig } from './env.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -1,0 +1,146 @@
+import sql from 'mssql';
+import { requirePool } from '../db/requirePool';
+import { ApiError } from '../errors/ApiError';
+
+export interface Loan {
+  id: number;
+  bookId: number;
+  userId: number;
+  borrowedAt: Date;
+  dueAt: Date;
+  returnedAt: Date | null;
+  status: 'active' | 'returned' | 'overdue';
+}
+
+interface LoanRow {
+  Id: number;
+  BookId: number;
+  UserId: number;
+  BorrowedAt: Date;
+  DueAt: Date;
+  ReturnedAt: Date | null;
+  Status: 'active' | 'returned' | 'overdue';
+}
+
+const LOAN_COLUMNS = 'Id, BookId, UserId, BorrowedAt, DueAt, ReturnedAt, Status';
+const LOAN_PERIOD_DAYS = 14;
+
+function mapLoan(row: LoanRow): Loan {
+  return {
+    id: row.Id,
+    bookId: row.BookId,
+    userId: row.UserId,
+    borrowedAt: row.BorrowedAt,
+    dueAt: row.DueAt,
+    returnedAt: row.ReturnedAt,
+    status: row.Status,
+  };
+}
+
+export async function borrowBook(userId: number, bookId: number): Promise<Loan> {
+  const pool = requirePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const bookResult = await new sql.Request(transaction)
+      .input('bookId', sql.Int, bookId)
+      .query('SELECT AvailableCopies FROM dbo.Books WITH (UPDLOCK, ROWLOCK) WHERE Id = @bookId');
+    const book = bookResult.recordset[0] as { AvailableCopies: number } | undefined;
+    if (!book) {
+      throw new ApiError('Book not found', 'BOOK_NOT_FOUND', 404);
+    }
+    if (book.AvailableCopies <= 0) {
+      throw new ApiError('No copies available to borrow', 'NO_COPIES_AVAILABLE', 409);
+    }
+
+    await new sql.Request(transaction)
+      .input('bookId', sql.Int, bookId)
+      .query('UPDATE dbo.Books SET AvailableCopies = AvailableCopies - 1 WHERE Id = @bookId');
+
+    const dueAt = new Date(Date.now() + LOAN_PERIOD_DAYS * 86_400_000);
+    const loanResult = await new sql.Request(transaction)
+      .input('bookId', sql.Int, bookId)
+      .input('userId', sql.Int, userId)
+      .input('dueAt', sql.DateTime2, dueAt)
+      .query(
+        `INSERT INTO dbo.Loans (BookId, UserId, DueAt, Status)
+         OUTPUT INSERTED.*
+         VALUES (@bookId, @userId, @dueAt, 'active')`,
+      );
+
+    await transaction.commit();
+    return mapLoan(loanResult.recordset[0] as LoanRow);
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+}
+
+export async function returnLoan(
+  loanId: number,
+  requestingUser: { id: number; role: string },
+): Promise<Loan> {
+  const pool = requirePool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const existingResult = await new sql.Request(transaction)
+      .input('id', sql.Int, loanId)
+      .query(`SELECT ${LOAN_COLUMNS} FROM dbo.Loans WITH (UPDLOCK, ROWLOCK) WHERE Id = @id`);
+    const existing = existingResult.recordset[0] as LoanRow | undefined;
+    if (!existing) {
+      throw new ApiError('Loan not found', 'LOAN_NOT_FOUND', 404);
+    }
+    if (requestingUser.role !== 'admin' && existing.UserId !== requestingUser.id) {
+      throw new ApiError('You can only return your own loans', 'FORBIDDEN', 403);
+    }
+    if (existing.Status === 'returned') {
+      throw new ApiError('This loan has already been returned', 'LOAN_ALREADY_RETURNED', 409);
+    }
+
+    const updateResult = await new sql.Request(transaction).input('id', sql.Int, loanId).query(
+      `UPDATE dbo.Loans
+         SET Status = 'returned', ReturnedAt = SYSUTCDATETIME()
+         OUTPUT INSERTED.*
+         WHERE Id = @id`,
+    );
+    await new sql.Request(transaction).input('bookId', sql.Int, existing.BookId).query(
+      `UPDATE dbo.Books
+         SET AvailableCopies = AvailableCopies + 1
+         WHERE Id = @bookId AND AvailableCopies < TotalCopies`,
+    );
+
+    await transaction.commit();
+    return mapLoan(updateResult.recordset[0] as LoanRow);
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+}
+
+export async function listLoansForUser(userId: number): Promise<Loan[]> {
+  const pool = requirePool();
+  const result = await pool
+    .request()
+    .input('userId', sql.Int, userId)
+    .query(`SELECT ${LOAN_COLUMNS} FROM dbo.Loans WHERE UserId = @userId ORDER BY BorrowedAt DESC`);
+  return (result.recordset as LoanRow[]).map(mapLoan);
+}
+
+/**
+ * Flips any `active` loan whose due date has passed to `overdue` before
+ * reading the report, so the Status column stays meaningful without a
+ * separate cron/scheduled job.
+ */
+export async function listOverdueLoans(): Promise<Loan[]> {
+  const pool = requirePool();
+  await pool
+    .request()
+    .query(
+      "UPDATE dbo.Loans SET Status = 'overdue' WHERE Status = 'active' AND DueAt < SYSUTCDATETIME()",
+    );
+  const result = await pool
+    .request()
+    .query(`SELECT ${LOAN_COLUMNS} FROM dbo.Loans WHERE Status = 'overdue' ORDER BY DueAt ASC`);
+  return (result.recordset as LoanRow[]).map(mapLoan);
+}

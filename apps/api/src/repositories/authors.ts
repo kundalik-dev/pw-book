@@ -67,6 +67,18 @@ export async function updateAuthor(
   return row ? mapAuthor(row) : null;
 }
 
+/** Used by bulk-import: reuse an existing author by exact name match, or create one. */
+export async function findOrCreateAuthorByName(name: string): Promise<Author> {
+  const pool = requirePool();
+  const existing = await pool
+    .request()
+    .input('name', sql.NVarChar(200), name)
+    .query('SELECT Id, Name, Bio FROM dbo.Authors WHERE Name = @name');
+  const row = existing.recordset[0] as AuthorRow | undefined;
+  if (row) return mapAuthor(row);
+  return createAuthor({ name });
+}
+
 export async function deleteAuthor(id: number): Promise<boolean> {
   const pool = requirePool();
   try {

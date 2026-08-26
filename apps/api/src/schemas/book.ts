@@ -40,6 +40,19 @@ export const availabilitySchema = z.object({
   availableCopies: z.coerce.number().int().min(0),
 });
 
+// Bulk-import CSV rows arrive as plain strings — numeric fields are
+// re-parsed and range-checked in the route so a bad row fails that row
+// only, not the whole import.
+export const bulkImportRowSchema = z.object({
+  title: z.string().trim().min(1, 'title is required'),
+  isbn: z.string().trim().min(1, 'isbn is required').max(20),
+  authorName: z.string().trim().min(1, 'authorName is required'),
+  categoryNames: z.string().trim().optional().default(''),
+  description: z.string().trim().optional().default(''),
+  publishedYear: z.string().trim().optional().default(''),
+  totalCopies: z.string().trim().optional().default(''),
+});
+
 export const listBooksQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

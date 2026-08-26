@@ -53,10 +53,7 @@ export async function createCategory(data: { name: string }): Promise<Category> 
   }
 }
 
-export async function updateCategory(
-  id: number,
-  data: { name: string },
-): Promise<Category | null> {
+export async function updateCategory(id: number, data: { name: string }): Promise<Category | null> {
   const pool = requirePool();
   try {
     const result = await pool
@@ -74,6 +71,18 @@ export async function updateCategory(
     }
     throw err;
   }
+}
+
+/** Used by bulk-import: reuse an existing category by exact name match, or create one. */
+export async function findOrCreateCategoryByName(name: string): Promise<Category> {
+  const pool = requirePool();
+  const existing = await pool
+    .request()
+    .input('name', sql.NVarChar(100), name)
+    .query('SELECT Id, Name FROM dbo.Categories WHERE Name = @name');
+  const row = existing.recordset[0] as CategoryRow | undefined;
+  if (row) return mapCategory(row);
+  return createCategory({ name });
 }
 
 export async function deleteCategory(id: number): Promise<boolean> {

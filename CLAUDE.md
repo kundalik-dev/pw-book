@@ -55,56 +55,39 @@ connection pool on transient failures rather than crashing (Phase 2, done).
     against the real API — the mock only assumes `EMAIL_TAKEN` and
     `INVALID_CREDENTIALS` codes from `docs/features.md`, not whatever the
     real backend actually returns.
-- **`apps/api` (Phase 2) is built and verified end-to-end** against the
-  currently-login-blocked local SQL Server instance (see `apps/db` below):
-  server starts and stays up, `/api/health` returns 200, `/api/health/db`
-  correctly returns 503 while the DB is unreachable and the pool keeps
-  retrying every 5s in the background without crashing the process, and a
-  404 confirmed the `{ error: { message, code } }` shape end-to-end. Zod
-  validation middleware (`src/middleware/validate.ts`) is written but has
-  no consumer yet — Phase 3's routes will be the first. Nothing here is
-  wired into `apps/web` yet (still on the mock client) since there's no
-  `/api/auth/*` for it to call — that's Phase 3.
-  - **Bug found and fixed:** the repo has one root `.env`, but plain
-    `dotenv/config` and Vite's default `envDir` each only look in their own
-    workspace's cwd, so `apps/api` and `apps/web` were silently missing
-    every root env var. Both now resolve the path up to the repo root
-    explicitly (see `apps/api/src/config.ts` and `apps/web/vite.config.ts`)
-    — the same pattern `apps/db/scripts/env.js` already used. Follow this
-    pattern for any new workspace that reads env vars.
-- **`apps/db` (Phase 1) is built but not yet run end-to-end** — blocked on
-  one manual step outside this repo. Details:
-  - Local instance discovered: SQL Server 2025 Express, instance
-    `SQLEXPRESS`, TCP/IP already enabled on fixed port 1433 (so
-    `DB_HOST=localhost` / `DB_PORT=1433` works — no named-instance suffix
-    or SQL Browser needed).
-  - **Blocker:** the instance's `LoginMode` is Windows-Authentication-only.
-    Creating a SQL login doesn't require that (done — see next bullet), but
-    *connecting* with one does. Flipping `LoginMode` to mixed mode and
-    restarting the `MSSQL$SQLEXPRESS` service both require OS admin rights,
-    which this session doesn't have — needs a human to run, in an elevated
-    PowerShell:
-    ```powershell
-    Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.SQLEXPRESS\MSSQLServer' -Name 'LoginMode' -Value 2
-    Restart-Service -Name 'MSSQL$SQLEXPRESS' -Force
-    ```
-  - Already done via `sqlcmd` (Windows auth, no admin needed): created the
-    `pw_books_app` SQL login, the `pw_books` database, and granted
-    `db_owner`. Also ran `apps/db/migrations/001_init.sql` directly via
-    `sqlcmd` to validate it — all 8 tables (Users, Authors, Categories,
-    Books, BookCategories, Loans, Reviews, WishlistItems) created
-    successfully, and a second run confirmed the guards make it idempotent.
-  - `apps/db/scripts/verify-connection.js` was run and correctly fails with
-    a "Login failed" error pointing at `docs/database-setup.md` — this
-    confirms the env-loading and `mssql` connection plumbing work; the only
-    thing standing between here and a working `npm run db:migrate` /
-    `npm run db:seed` is the elevated command above.
-  - `apps/db/scripts/seed.js` (20 books, 6 authors, 5 categories, 3 users,
-    3 loans, 4 reviews — deliberately including an unavailable book, an
-    overdue loan, and a book with zero reviews per `docs/tasks` phase 10)
-    has **not** been run yet; it's written but unverified against a live
-    connection. Run it once the login works and sanity-check the row counts
-    match the comment in `main()`.
+- **`apps/api` (Phases 2-4) is built and verified end-to-end against the
+  live local SQL Server instance** — the Phase 1 login blocker below was
+  resolved and the DB is now migrated + seeded. `/api/health` and
+  `/api/health/db` both work as designed. Auth (Phase 3): register, login,
+  refresh (with rotation + reuse-detection), logout, `GET /api/auth/me`,
+  and `requireAuth`/`requireRole('admin')` middleware are all live —
+  see `src/routes/auth.ts`, `src/services/authService.ts`,
+  `src/middleware/auth.ts`, `src/utils/{jwt,password}.ts`,
+  `src/db/refreshTokens.ts`. Core CRUD (Phase 4): full Authors/Categories/
+  Books CRUD, all mutating routes admin-gated via Phase 3's middleware,
+  Books list with pagination/sort/filter/search, Multer cover-image upload
+  served from `/uploads/covers/`, and `PATCH /api/books/:id/availability`
+  — see `src/routes/{authors,categories,books}.ts`,
+  `src/repositories/{authors,categories,books}.ts`,
+  `src/schemas/{author,category,book}.ts`. `GET /api/books/export` is a
+  501 stub — real CSV export is Phase 5. Details and the full curl-verified
+  test matrix are in `docs/tasks/01-mvp-build-plan.md` (Phase 3 and Phase 4
+  sections).
+  - **Bug found and fixed (Phase 2):** the repo has one root `.env`, but
+    plain `dotenv/config` and Vite's default `envDir` each only look in
+    their own workspace's cwd, so `apps/api` and `apps/web` were silently
+    missing every root env var. Both now resolve the path up to the repo
+    root explicitly (see `apps/api/src/config.ts` and
+    `apps/web/vite.config.ts`) — the same pattern `apps/db/scripts/env.js`
+    already used. Follow this pattern for any new workspace that reads env
+    vars.
+- **`apps/db` (Phase 1) is fully migrated and seeded** — the mixed-mode
+  login blocker was resolved by a human running the elevated PowerShell
+  step, and `npm run db:migrate` / `npm run db:seed` have both run
+  successfully against `localhost:1433` (SQL Server 2025 Express,
+  `SQLEXPRESS`). All 8 tables plus the Phase 3 `dbo.RefreshTokens` table
+  (`apps/db/migrations/002_refresh_tokens.sql`) exist; seed data (6
+  authors, 5 categories, 20 books, 3 users, 3 loans, 4 reviews) is loaded.
   - Seeded user login for later UI/API testing: any of
     `admin@pwbooks.test` / `member@pwbooks.test` / `alex@pwbooks.test`,
     password `Password123!` for all three.

@@ -1,5 +1,5 @@
-import sql from 'mssql';
 import bcrypt from 'bcryptjs';
+import sql from 'mssql';
 import { getDbConfig } from './env.js';
 
 const authors = [

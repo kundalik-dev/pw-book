@@ -46,3 +46,33 @@ export const uploadCoverImage: RequestHandler = (req, res, next) => {
     next(err);
   });
 };
+
+// Kept in memory (not on disk like covers) — bulk-import parses it once and
+// discards it, no need to persist the file itself.
+const csvUploader = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const looksLikeCsv =
+      file.mimetype === 'text/csv' || file.originalname.toLowerCase().endsWith('.csv');
+    if (!looksLikeCsv) {
+      cb(new ApiError('File must be a CSV', 'INVALID_FILE_TYPE', 400));
+      return;
+    }
+    cb(null, true);
+  },
+}).single('file');
+
+export const uploadCsvFile: RequestHandler = (req, res, next) => {
+  csvUploader(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+    if (err instanceof MulterError) {
+      next(new ApiError(err.message, 'INVALID_FILE_UPLOAD', 400));
+      return;
+    }
+    next(err);
+  });
+};
