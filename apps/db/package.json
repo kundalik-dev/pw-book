@@ -1,0 +1,16 @@
+{
+  "name": "@pw-books/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "verify": "node scripts/verify-connection.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.6.1",
+    "mssql": "^11.0.1"
+  }
+}
