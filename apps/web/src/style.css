@@ -157,6 +157,15 @@ a {
   color: var(--color-text);
 }
 
+.btn--danger {
+  background: var(--color-error);
+  color: white;
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
 /* Auth forms */
 
 .auth-page {

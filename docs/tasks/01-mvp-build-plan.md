@@ -411,6 +411,59 @@ still works for this UI).
   admin user) → theme toggle persists across reload → delete-account's
   `confirm()` dialog.
 
+  **Still true as of Phase 11** — the Chrome extension was unavailable in
+  that session too. As the best available substitute, did a full manual
+  read-through of every page/component file across Phases 6-9 (not grep
+  excerpts — full files, cross-checked against how each caller actually
+  invokes them) hunting specifically for the class of bug curl/tsc/biome
+  can't catch. Found and fixed four real ones:
+  - **`apps/web/src/api/httpClient.ts`** — `HttpApiClient.request()`
+    always called `response.json()` on a successful response, but
+    `DELETE /api/books/:id` and `DELETE /api/reviews/:id` both return
+    `204 No Content` with an empty body (confirmed live: `curl -X DELETE`
+    → `status=204 size=0`). Parsing an empty body as JSON throws, so
+    clicking "Delete" in the admin table would have thrown inside the
+    `try` in `admin.ts`'s `confirmDelete`, surfaced as a misleading
+    "Could not delete one or more books" toast — even though the delete
+    had actually succeeded server-side. This is exactly the kind of bug
+    curl-testing the raw API (which doesn't care about parsing) can't
+    catch. Fixed by short-circuiting on `response.status === 204` before
+    the `.json()` call.
+  - **`apps/web/src/components/navbar.ts`** — `mountNavbar`'s `render()`
+    (re-run on every route change and every auth-state change) added a
+    *new* `document.addEventListener('click', ...)` each time to close
+    the account dropdown, never removing the old ones — an unbounded
+    listener leak over the life of a session. Fixed by attaching that
+    listener once, outside `render()`, querying the live DOM for the
+    current dropdown/toggle at click time instead of closing over
+    per-render elements.
+  - **`apps/web/src/pages/books.ts`** — `fetchSuggestions` (the search
+    autocomplete) had no request-sequencing guard, unlike the main list
+    load right next to it, so a slower earlier suggestions request could
+    resolve after a faster later one and clobber the dropdown with stale
+    results. Fixed with the same `seq`-counter pattern already used for
+    `loadPage`.
+  - **`apps/web/src/pages/admin.ts`** — bulk-deleting exactly one book
+    produced the modal message `Delete ""? This can't be undone.` (the
+    bulk caller passes an empty `label`, but the message logic branched
+    on `ids.length === 1` alone). Fixed to require a non-empty label for
+    the quoted-title phrasing, falling back to `Delete 1 book?` /
+    `Delete N books?` otherwise.
+
+  Re-ran `npm run lint` and `npm run build` after each fix — both stay
+  clean. **Note:** while this review was in progress, a concurrent session
+  in this same working tree landed a new `/settings` admin page
+  (`pages/settings.ts`, wired into `main.ts` and `navbar.ts`) for
+  resetting the app to its seed state via the already-existing
+  `POST /api/system/reset` endpoint — unrelated to this review, mentioned
+  here only per this repo's cross-session-visibility convention (see the
+  Phase 8/9 coordination notes above). It landed cleanly on top of the
+  `navbar.ts` fix above with no conflict.
+
+  Real click-testing in a browser is still the one thing this couldn't
+  substitute for — do that pass whenever the Chrome extension is
+  available before fully trusting the UI.
+
 ## Phase 10 — Seed data & fixtures polish ✅
 
 - [x] Re-check seed data covers: an unavailable book (0 copies), a book with
@@ -434,29 +487,57 @@ still works for this UI).
   - **Active loan:** loan id 1, `member@pwbooks.test` / `Pride and
     Prejudice`.
 
-  **Observation, not fixed (see Phase 8/9 note in "Issues found" below):**
-  the live `Loans` table has 2 extra `returned` rows beyond the 3 from
-  `seed.js` (`member@pwbooks.test` borrowing/returning `Emma` twice, both
-  timestamped today ~14s apart) — almost certainly transient data from a
-  concurrent Phase 8/9 agent exercising the borrow/return flow while this
-  check ran, not a seed-script bug. Left alone since it's plausibly another
-  agent's in-progress verification data; flagging in case it's actually
-  stale residue nobody intends to clean up.
+  **Resolved (checked during Phase 11):** the live `Loans` table has extra
+  `returned` rows beyond the 3 from `seed.js` (ids 4-6 as of Phase 11,
+  `Emma` x2 and `Animal Farm`, all same-day borrow→return pairs). Confirmed
+  via a direct query these are exactly what earlier phases' notes already
+  said they'd be: leftover history from live curl verification of the
+  borrow/return endpoints (Phase 9's `POST /api/loans` →
+  `PUT /api/loans/:id/return` round-trip, plus Phase 11's own). Returning a
+  loan updates its status rather than deleting the row — that's correct
+  library-domain behavior, not a script bug or pollution — so this needed
+  no fix, just confirmation it isn't a regression. No other "Issues found"
+  section exists elsewhere in this doc; the earlier cross-reference was
+  stale.
 
-## Phase 11 — Wiring it all together
+## Phase 11 — Wiring it all together ✅
 
-- [ ] `turbo.json` `dev` pipeline: `api` and `web` run in parallel; `api`'s
+- [x] `turbo.json` `dev` pipeline: `api` and `web` run in parallel; `api`'s
       `dev` task depends on `db#verify` so `npm run dev` fails fast with a
       clear message if the local SQL Server service isn't running, instead
       of the API silently retrying forever
-- [ ] Confirm `npm run dev` at root brings up API + web with one command
+- [x] Confirm `npm run dev` at root brings up API + web with one command
       (DB itself is just the always-on local Windows service — nothing to
       start for it)
-- [ ] API retries its DB connection pool on transient failures (from
+- [x] API retries its DB connection pool on transient failures (from
       Phase 2) so brief hiccups don't crash the process
-- [ ] `npm run lint` / `npm run format` at root run Biome across every
+- [x] `npm run lint` / `npm run format` at root run Biome across every
       workspace
-- [ ] `npm run build` builds `apps/api` and `apps/web` via Turbo
+- [x] `npm run build` builds `apps/api` and `apps/web` via Turbo
+
+  Added a package-scoped task override to `turbo.json`:
+  `"@pw-books/api#dev": { "dependsOn": ["@pw-books/db#verify"], "cache":
+  false, "persistent": true }` (plus a bare `"verify": { "cache": false }`
+  task definition so `db#verify` is recognized at all) — `apps/db`'s
+  existing `verify` script (`scripts/verify-connection.js`, from Phase 1)
+  needed no changes, it already exits non-zero with a clear message on
+  connection failure. `web`'s `dev` task has no such dependency and starts
+  immediately in parallel, as intended.
+
+  **Verified:** `npx turbo run dev --dry-run=json` confirms the resolved
+  graph — `@pw-books/api#dev` now lists `@pw-books/db#verify` as a
+  dependency, `@pw-books/web#dev` has none, both are `persistent`. Ran
+  `npm run dev` for real: `db#verify` connected to the live local SQL
+  Server instance and printed its confirmation line, then `api#dev` and
+  `web#dev` started together (`web` fell back to a free port since 5173
+  was already bound by another already-running dev instance in this
+  environment — expected port-picking behavior, not a wiring bug; killed
+  this verification run's process tree afterward, leaving the
+  pre-existing dev servers on :3000/:5173 untouched and still healthy per
+  `curl`). `npm run lint`, `npm run format:check`, and `npm run build`
+  (root) all pass clean with zero errors across `api`/`web` (`db` has no
+  build/lint-specific step beyond the shared root Biome check, which
+  covers it too).
 
 ## Phase 12 — Docs pass
 

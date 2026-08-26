@@ -65,6 +65,14 @@ Grouped by the Playwright/API-testing pattern each one is meant to drill.
 - `GET /api/flaky` — randomly returns 500 ~30% of the time, for retry/resilience tests
 - **Practice:** timeout config, retry logic, network-condition simulation, `waitForResponse`
 
+### System / admin
+- `POST /api/system/reset` — admin-only; wipes all DB data, resets identity
+  seeds, re-inserts the same dataset `db:seed` loads, and clears uploaded
+  cover images — brings the whole app back to a fresh-seed baseline between
+  test runs
+- **Practice:** destructive-action confirmation flows, test-suite/global-setup
+  reset hooks that call this before a run
+
 ## Frontend UI (`apps/web`)
 
 Ordered simple → complex; each maps to Playwright locator/interaction practice.
@@ -102,6 +110,10 @@ Ordered simple → complex; each maps to Playwright locator/interaction practice
 - One deliberate native `confirm()` dialog (e.g. "delete account") — kept
   isolated on one page so dialog-handling can be practiced without breaking
   other tests
+- Admin-only Settings page (`/settings`) with a "danger zone" reset-app
+  button — a custom modal (not the native `confirm()`) requiring the user to
+  type `DELETE` before the confirm button enables, for type-to-confirm
+  destructive-action practice
 
 ## Out of scope
 

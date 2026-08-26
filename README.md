@@ -24,6 +24,8 @@ pw-books/
 │   └── db/      # SQL migrations/seed data + scripts (targets local SQL Server)
 ├── docs/
 │   ├── features.md          # what exists and why (API + UI catalogue)
+│   ├── issues.md            # known gaps / pending work
+│   ├── database-setup.md    # one-time local SQL Server setup
 │   └── tasks/                # build plan / task checklists
 ├── biome.json
 ├── turbo.json

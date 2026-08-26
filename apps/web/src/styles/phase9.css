@@ -436,3 +436,37 @@
 .delete-account-page {
   max-width: 420px;
 }
+
+/* Settings */
+
+.settings-page {
+  max-width: 640px;
+}
+
+.danger-zone {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+}
+
+.danger-zone h2 {
+  margin-top: 0;
+  color: var(--color-error);
+}
+
+.reset-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reset-modal-content__input {
+  width: 100%;
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}

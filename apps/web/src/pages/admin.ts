@@ -170,9 +170,9 @@ export function renderAdminPage(container: HTMLElement): void {
       title: 'Delete book',
       testId: 'confirm-delete-modal',
       message:
-        ids.length === 1
+        ids.length === 1 && label
           ? `Delete "${label}"? This can't be undone.`
-          : `Delete ${ids.length} books? This can't be undone.`,
+          : `Delete ${ids.length} book${ids.length === 1 ? '' : 's'}? This can't be undone.`,
       onConfirm: async () => {
         try {
           for (const id of ids) await apiClient.deleteBook(id);

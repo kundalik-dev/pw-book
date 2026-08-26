@@ -11,6 +11,7 @@ import type {
   LoginInput,
   PaginatedBooks,
   RegisterInput,
+  ResetSummary,
   Review,
   User,
 } from './types';
@@ -103,6 +104,13 @@ export class HttpApiClient implements ApiClient {
     return loans;
   }
 
+  async resetSystem(): Promise<ResetSummary> {
+    const { summary } = await this.request<{ summary: ResetSummary }>('/system/reset', {
+      method: 'POST',
+    });
+    return summary;
+  }
+
   private async request<T>(path: string, options: { method: string; body?: unknown }): Promise<T> {
     const auth = getAuthState();
     const headers: Record<string, string> = {};
@@ -121,6 +129,10 @@ export class HttpApiClient implements ApiClient {
         body?.error?.message ?? `Request failed with status ${response.status}`,
         body?.error?.code ?? 'UNKNOWN_ERROR',
       );
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
     }
 
     return response.json() as Promise<T>;

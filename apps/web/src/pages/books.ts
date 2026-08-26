@@ -46,6 +46,7 @@ export function renderBooksPage(container: HTMLElement): () => void {
 
   let currentPage = 1;
   let requestSeq = 0;
+  let suggestionSeq = 0;
   let searchDebounceTimer: number | undefined;
 
   const page = document.createElement('div');
@@ -440,6 +441,7 @@ export function renderBooksPage(container: HTMLElement): () => void {
   });
 
   async function fetchSuggestions(q: string): Promise<void> {
+    const seq = ++suggestionSeq;
     if (!q) {
       suggestionsList.hidden = true;
       suggestionsList.innerHTML = '';
@@ -447,8 +449,10 @@ export function renderBooksPage(container: HTMLElement): () => void {
     }
     try {
       const result = await apiClient.listBooks({ q, page: 1, limit: SUGGESTION_LIMIT });
+      if (seq !== suggestionSeq) return;
       renderSuggestions(result.books);
     } catch {
+      if (seq !== suggestionSeq) return;
       suggestionsList.hidden = true;
     }
   }

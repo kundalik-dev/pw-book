@@ -115,6 +115,15 @@ export class ApiError extends Error {
   }
 }
 
+export interface ResetSummary {
+  authors: number;
+  categories: number;
+  books: number;
+  users: number;
+  loans: number;
+  reviews: number;
+}
+
 export interface ApiClient {
   register(input: RegisterInput): Promise<AuthResult>;
   login(input: LoginInput): Promise<AuthResult>;
@@ -129,4 +138,5 @@ export interface ApiClient {
   deleteReview(id: number): Promise<void>;
   createLoan(bookId: number): Promise<Loan>;
   listMyLoans(): Promise<Loan[]>;
+  resetSystem(): Promise<ResetSummary>;
 }

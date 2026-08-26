@@ -10,12 +10,20 @@
       "cache": false,
       "persistent": true
     },
+    "verify": {
+      "cache": false
+    },
     "lint": {
       "outputs": []
     },
     "test": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@pw-books/api#dev": {
+      "dependsOn": ["@pw-books/db#verify"],
+      "cache": false,
+      "persistent": true
     }
   }
 }

@@ -30,6 +30,7 @@ export function mountNavbar(target: HTMLElement): void {
       links.appendChild(createNavLink('/wishlist', 'Wishlist'));
       if (auth.user.role === 'admin') {
         links.appendChild(createNavLink('/admin', 'Admin'));
+        links.appendChild(createNavLink('/settings', 'Settings'));
       }
     }
 
@@ -94,19 +95,23 @@ export function mountNavbar(target: HTMLElement): void {
         toggle.setAttribute('aria-expanded', String(!isOpen));
       });
 
-      document.addEventListener('click', (event) => {
-        if (!account.contains(event.target as Node)) {
-          dropdown.hidden = true;
-          toggle.setAttribute('aria-expanded', 'false');
-        }
-      });
-
       links.appendChild(account);
     } else {
       links.appendChild(createNavLink('/login', 'Log in'));
       links.appendChild(createNavLink('/register', 'Register'));
     }
   };
+
+  document.addEventListener('click', (event) => {
+    const account = nav.querySelector('.navbar__account');
+    const dropdown = nav.querySelector<HTMLElement>('.navbar__dropdown');
+    const toggle = nav.querySelector<HTMLButtonElement>('.navbar__account-toggle');
+    if (!account || !dropdown || !toggle || dropdown.hidden) return;
+    if (!account.contains(event.target as Node)) {
+      dropdown.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  });
 
   onAuthChange(render);
   window.addEventListener('app:routechange', render);

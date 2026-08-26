@@ -11,6 +11,7 @@ import type {
   LoginInput,
   PaginatedBooks,
   RegisterInput,
+  ResetSummary,
   Review,
   User,
 } from '../types';
@@ -214,6 +215,23 @@ export class MockApiClient implements ApiClient {
   async listMyLoans(): Promise<Loan[]> {
     const userId = this.requireUserId();
     return delay(this.loans.filter((l) => l.userId === userId));
+  }
+
+  async resetSystem(): Promise<ResetSummary> {
+    this.users = [...mockUsers];
+    this.books = [...mockBooks];
+    this.reviews = [];
+    this.loans = [];
+    this.nextReviewId = 1;
+    this.nextLoanId = 1;
+    return delay({
+      authors: mockAuthors.length,
+      categories: mockCategories.length,
+      books: mockBooks.length,
+      users: mockUsers.length,
+      loans: 0,
+      reviews: 0,
+    });
   }
 
   private requireUserId(): number {
