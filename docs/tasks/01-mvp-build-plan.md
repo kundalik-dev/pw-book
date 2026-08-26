@@ -539,12 +539,59 @@ still works for this UI).
   build/lint-specific step beyond the shared root Biome check, which
   covers it too).
 
-## Phase 12 — Docs pass
+## Phase 12 — Docs pass ✅
 
-- [ ] Update `README.md` if any setup step changed from what's documented
-- [ ] Update `CLAUDE.md` if conventions or structure shifted during the build
-- [ ] Update `docs/features.md` if scope changed
-- [ ] Update `docs/database-setup.md` if local SQL Server setup steps changed
+- [x] Update `README.md` if any setup step changed from what's documented
+- [x] Update `CLAUDE.md` if conventions or structure shifted during the build
+- [x] Update `docs/features.md` if scope changed
+- [x] Update `docs/database-setup.md` if local SQL Server setup steps changed
+- [x] Create `docs/issues.md` — a live list of known gaps/pending work,
+      separate from this file's phase-by-phase build history — and
+      reference it from `CLAUDE.md`
+
+  **`README.md`:** the "Status" section was still describing the
+  pre-Phase-1 state (`apps/api`/`apps/db` "don't exist yet") — rewrote it
+  to reflect the completed build and point at this file + `docs/issues.md`
+  instead of duplicating detail. Added `docs/issues.md` and
+  `docs/database-setup.md` to the project-structure tree (both existed
+  already but weren't listed).
+
+  **`CLAUDE.md`:** the "Current status" section had grown into a very long
+  phase-by-phase changelog (accurate, but now fully redundant with this
+  file, which is the actual source of truth for build history). Replaced
+  it with a short current-state summary plus pointers to this file and the
+  new `docs/issues.md`; updated the "Architecture" section's stale "Phase
+  11, not done yet" line now that it's done; dropped the "(once
+  scaffolded)" qualifier from the Commands section; added a
+  `docs/issues.md` pointer to both the intro and "Working in this repo"
+  sections.
+
+  **`docs/features.md`:** already current — a concurrent session had
+  already added the `/settings` reset-app page and
+  `POST /api/system/reset` to it while Phase 11 was running (see that
+  phase's note above). No changes needed.
+
+  **`docs/database-setup.md`:** step 6 referenced "once `apps/db` exists
+  (Phase 1 of the build plan)", stale now that the whole build is done —
+  reworded to state the verify/migrate/seed steps directly.
+
+  **`docs/issues.md`** (new): three open items, each with concrete
+  next-step guidance — (1) real browser click-testing has never been done
+  in any session (no Chrome extension connection was ever available; see
+  the Phase 6-11 notes above for what static review substituted for it),
+  (2) the frontend never calls `POST /api/auth/logout` or
+  `POST /api/auth/refresh` even though both are fully built and
+  curl-verified on the backend (Phase 3) — logout only clears local
+  storage, and access-token expiry requires a fresh login rather than a
+  silent refresh, (3) `DELETE /api/reviews/:id` has no UI entry point —
+  it works and enforces the ownership check `docs/features.md` calls out
+  as its specific practice value, but nothing renders a delete button for
+  a user's own review. None of these are regressions — they're gaps that
+  were never in scope for the phase that would have closed them, surfaced
+  now during this docs pass. Convention going forward: delete an item from
+  `docs/issues.md` when it's resolved rather than checking it off in
+  place — this file (the build plan) stays the historical record,
+  `issues.md` stays a live list.
 
 ## Explicitly deferred (not part of this MVP)
 

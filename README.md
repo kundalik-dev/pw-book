@@ -85,15 +85,18 @@ Once running:
 
 ## Status
 
-This project is under active build-out. See
-[`docs/tasks/01-mvp-build-plan.md`](docs/tasks/01-mvp-build-plan.md) for the
-current phase and what's left.
+The MVP build is complete — all phases in
+[`docs/tasks/01-mvp-build-plan.md`](docs/tasks/01-mvp-build-plan.md) are
+done, including wiring `npm run dev` to run the DB check, API, and web dev
+server together. That file has the full build history; for known gaps and
+pending follow-up work, see [`docs/issues.md`](docs/issues.md) — most
+notably, the frontend hasn't yet been click-tested in a real browser (only
+via `tsc`/`biome`/`vite build`/curl), so treat the UI as build-verified but
+not runtime-verified until that pass happens.
 
-`apps/web` (Phases 6-7) is scaffolded with login/register, a book grid with
-"load more," a navbar, and toasts — but `apps/api` and `apps/db` (Phases
-1-5) don't exist yet, so the frontend runs against an in-memory mock API by
-default (`VITE_USE_MOCK_API=true` in `.env.sample`). `npm run dev` at root
-will not yet bring up a working DB/API.
+The frontend talks to the real API by default now that the backend and DB
+exist; set `VITE_USE_MOCK_API=true` in `.env` to fall back to the in-memory
+mock client instead (offline work, or no local SQL Server running).
 
 ## License
 

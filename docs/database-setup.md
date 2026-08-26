@@ -64,14 +64,11 @@ values against a real/shared server.
 
 ## 6. Verify
 
-Once `apps/db` exists (Phase 1 of the build plan), run:
-
 ```bash
 npm run db:migrate
 npm run db:seed
 ```
 
-`apps/db/scripts/verify-connection.js` (also added in Phase 1) is what
-Turbo runs before starting the API, so a stopped SQL Server service or a
-wrong password fails immediately with a clear error instead of the API
-hanging.
+`apps/db/scripts/verify-connection.js` is what `npm run dev` (via Turbo)
+runs before starting the API, so a stopped SQL Server service or a wrong
+password fails immediately with a clear error instead of the API hanging.
