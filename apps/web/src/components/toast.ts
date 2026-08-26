@@ -17,8 +17,18 @@ export function showToast(message: string, type: ToastType = 'success'): void {
 
   const toast = document.createElement('div');
   toast.className = `toast toast--${type}`;
-  toast.textContent = message;
   toast.setAttribute('data-testid', 'toast');
+
+  const icon = document.createElement('span');
+  icon.className = 'toast__icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = type === 'success' ? '🎉' : '⚠️';
+  toast.appendChild(icon);
+
+  const text = document.createElement('span');
+  text.className = 'toast__message';
+  text.textContent = message;
+  toast.appendChild(text);
 
   host.appendChild(toast);
 

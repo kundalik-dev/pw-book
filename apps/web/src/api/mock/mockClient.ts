@@ -322,6 +322,20 @@ export class MockApiClient implements ApiClient {
     );
   }
 
+  async exportMyLoansCsv(): Promise<Blob> {
+    const userId = this.requireUserId();
+    return delay(
+      this.loansToCsvBlob(
+        this.loans.filter((l) => l.userId === userId),
+        false,
+      ),
+    );
+  }
+
+  async exportAllLoansCsv(): Promise<Blob> {
+    return delay(this.loansToCsvBlob([...this.loans], true));
+  }
+
   async resetSystem(): Promise<ResetSummary> {
     this.users = [...mockUsers];
     this.books = [...mockBooks];
@@ -337,6 +351,40 @@ export class MockApiClient implements ApiClient {
       loans: 0,
       reviews: 0,
     });
+  }
+
+  private loansToCsvBlob(loans: Loan[], includeCustomer: boolean): Blob {
+    const header = [
+      'book',
+      ...(includeCustomer ? ['customerName', 'customerEmail'] : []),
+      'orderedOn',
+      'returnBy',
+      'returnedOn',
+      'returnedTo',
+      'status',
+    ];
+    const rows = loans.map((loan) => {
+      const book = this.books.find((b) => b.id === loan.bookId);
+      const customer = this.users.find((u) => numericUserId(u) === loan.userId);
+      const returnedToAdmin = loan.returnedToAdminId
+        ? this.users.find((u) => numericUserId(u) === loan.returnedToAdminId)
+        : undefined;
+      return [
+        book?.title ?? `Book #${loan.bookId}`,
+        ...(includeCustomer
+          ? [customer?.name ?? `User #${loan.userId}`, customer?.email ?? '']
+          : []),
+        loan.borrowedAt.slice(0, 10),
+        loan.dueAt.slice(0, 10),
+        loan.returnedAt ? loan.returnedAt.slice(0, 10) : '',
+        returnedToAdmin?.name ?? '',
+        loan.status,
+      ];
+    });
+    const escapeField = (value: string): string =>
+      /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    const csv = [header, ...rows].map((row) => row.map(escapeField).join(',')).join('\r\n');
+    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   }
 
   private requireUserId(): number {

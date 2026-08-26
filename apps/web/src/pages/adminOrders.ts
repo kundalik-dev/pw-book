@@ -5,6 +5,7 @@ import { showToast } from '../components/toast';
 import { navigate } from '../router/router';
 import { getAuthState } from '../state/auth';
 import '../styles/phase9.css';
+import { downloadBlob } from '../utils/download';
 
 type SortKey = 'book' | 'customer' | 'borrowedAt';
 type SortDir = 1 | -1;
@@ -41,9 +42,33 @@ export function renderAdminOrdersPage(container: HTMLElement): () => void {
   root.setAttribute('data-testid', 'admin-orders-page');
   container.appendChild(root);
 
+  const headerRow = document.createElement('div');
+  headerRow.className = 'page-header-row';
+  root.appendChild(headerRow);
+
   const heading = document.createElement('h1');
   heading.textContent = 'All orders';
-  root.appendChild(heading);
+  headerRow.appendChild(heading);
+
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'btn btn--secondary';
+  exportBtn.textContent = 'Export to Excel';
+  exportBtn.setAttribute('data-testid', 'admin-orders-export');
+  exportBtn.addEventListener('click', () => void exportOrders());
+  headerRow.appendChild(exportBtn);
+
+  async function exportOrders(): Promise<void> {
+    exportBtn.disabled = true;
+    try {
+      const blob = await apiClient.exportAllLoansCsv();
+      downloadBlob(blob, 'all-orders-export.csv');
+    } catch {
+      showToast('Could not export orders.', 'error');
+    } finally {
+      exportBtn.disabled = false;
+    }
+  }
 
   const filterBar = document.createElement('div');
   filterBar.className = 'orders-filter-bar';

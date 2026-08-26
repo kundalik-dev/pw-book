@@ -47,6 +47,14 @@ pre-filled, the admin dropdown lists admin users only and blocks confirm
 until one is picked, and the row updates with status/returned-on/returned-to
 afterward.
 
+The Orders page's pagination bar and both pages' "Export to Excel" buttons
+(`pages/orders.ts`, `pages/adminOrders.ts`) are newer still — verified only
+via `tsc` and `biome check`, no curl/click-through pass yet. Add to the
+list: paginate the Orders page history table (rows-per-page, prev/next),
+and on both pages click Export to Excel and confirm the browser actually
+downloads a `.csv` file with the expected columns (and, for the admin
+page, one row per customer's order rather than just the signed-in user's).
+
 The admin table's add/edit-book form and pagination controls
 (`pages/admin.ts`) are new since the original Phase 9 pass and have only
 been verified via `tsc`, `biome check`, `vite build`, and a curl round-trip

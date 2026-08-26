@@ -6,7 +6,18 @@ import { navigate } from '../router/router';
 import { getAuthState } from '../state/auth';
 import '../styles/phase9.css';
 
-const LOAN_PERIOD_DAYS = 14; // Mirrors apps/api's LOAN_PERIOD_DAYS in repositories/loans.ts
+// Mirrors ORDER_RETURN_WINDOW_DAYS in apps/api's schemas/loan.ts — the cap on
+// a caller-supplied due date, and the default when the wizard doesn't send one.
+const LOAN_PERIOD_DAYS = 10;
+
+function toDateInputValue(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfTodayUTC(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
 
 type StepId = 'select' | 'confirm' | 'due-date' | 'success';
 const STEPS: Array<{ id: StepId; label: string }> = [
@@ -33,6 +44,9 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
   let stepIndex = 0;
   let agreed = false;
   let loanResult: { id: number; dueAt: string } | null = null;
+  let selectedDueDate = toDateInputValue(
+    new Date(startOfTodayUTC().getTime() + LOAN_PERIOD_DAYS * 86_400_000),
+  );
 
   const page = document.createElement('div');
   page.className = 'borrow-wizard';
@@ -144,12 +158,25 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
   }
 
   function renderDueDateStep(): void {
-    const estimatedDue = new Date(Date.now() + LOAN_PERIOD_DAYS * 86_400_000);
+    const todayUTC = startOfTodayUTC();
+    const maxDate = new Date(todayUTC.getTime() + LOAN_PERIOD_DAYS * 86_400_000);
 
-    const summary = document.createElement('p');
-    summary.setAttribute('data-testid', 'wizard-estimated-due-date');
-    summary.textContent = `Estimated due date: ${estimatedDue.toLocaleDateString()}`;
-    stepBody.appendChild(summary);
+    const dateLabel = document.createElement('label');
+    dateLabel.className = 'wizard-due-date-label';
+    dateLabel.textContent = `Return date (within ${LOAN_PERIOD_DAYS} days of today)`;
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.required = true;
+    dateInput.min = toDateInputValue(todayUTC);
+    dateInput.max = toDateInputValue(maxDate);
+    dateInput.value = selectedDueDate;
+    dateInput.setAttribute('data-testid', 'wizard-due-date');
+    dateInput.addEventListener('change', () => {
+      selectedDueDate = dateInput.value;
+    });
+    dateLabel.appendChild(dateInput);
+    stepBody.appendChild(dateLabel);
 
     const nav = document.createElement('div');
     nav.className = 'wizard-nav';
@@ -168,10 +195,15 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
     confirmBtn.textContent = 'Confirm borrow';
     confirmBtn.setAttribute('data-testid', 'wizard-confirm-borrow');
     confirmBtn.addEventListener('click', async () => {
+      if (!dateInput.value) return;
       confirmBtn.disabled = true;
       try {
-        const loan = await apiClient.createLoan(bookId);
+        const loan = await apiClient.createLoan(bookId, dateInput.value);
         loanResult = { id: loan.id, dueAt: loan.dueAt };
+        showToast(
+          `Book borrowed! Return by ${new Date(loan.dueAt).toLocaleDateString()}.`,
+          'success',
+        );
         goToStep(3);
       } catch (err) {
         const message = err instanceof ApiError ? err.message : 'Could not borrow this book.';
@@ -193,12 +225,25 @@ export function renderBorrowPage(container: HTMLElement, params: Record<string, 
     summary.textContent = `Loan #${loanResult.id} is due back on ${new Date(loanResult.dueAt).toLocaleDateString()}.`;
     stepBody.appendChild(summary);
 
+    const nav = document.createElement('div');
+    nav.className = 'wizard-nav';
+    stepBody.appendChild(nav);
+
+    const goToOrders = document.createElement('a');
+    goToOrders.href = '/orders';
+    goToOrders.dataset.link = '';
+    goToOrders.className = 'btn btn--primary';
+    goToOrders.textContent = 'Go to orders';
+    goToOrders.setAttribute('data-testid', 'wizard-go-to-orders');
+    nav.appendChild(goToOrders);
+
     const backToBooks = document.createElement('a');
     backToBooks.href = '/books';
     backToBooks.dataset.link = '';
-    backToBooks.className = 'btn btn--primary';
+    backToBooks.className = 'btn btn--secondary';
     backToBooks.textContent = 'Back to books';
-    stepBody.appendChild(backToBooks);
+    backToBooks.setAttribute('data-testid', 'wizard-back-to-books');
+    nav.appendChild(backToBooks);
   }
 
   async function init(): Promise<void> {

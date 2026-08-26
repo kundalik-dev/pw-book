@@ -66,10 +66,16 @@ Grouped by the Playwright/API-testing pattern each one is meant to drill.
   powers the Orders page's return-handover dropdown)
 - `GET /api/users` — admin-only, every user (id/name/email/role); powers the
   admin Orders page's customer name lookups
+- `GET /api/loans/me/export` — CSV download of the current user's own order
+  history (the Orders page's "Export to Excel" button)
+- `GET /api/loans/export` — admin-only CSV download of every order across
+  every customer (the admin Orders page's "Export to Excel" button)
 - **Practice:** stateful workflows, sequential API calls that must run in
   order, business-rule error codes, server-side date-range validation,
   cross-entity reference validation (the handover admin id), role-gated
-  query-filtered listings
+  query-filtered listings, authenticated file download (CSV requested via
+  `fetch` + `Authorization` header rather than a plain link, since these
+  routes aren't public like `/books/export`)
 
 ### Reviews
 - `GET /api/books/:id/reviews`
@@ -123,20 +129,25 @@ Ordered simple → complex; each maps to Playwright locator/interaction practice
   due-date review → success)
 - Orders page (`/orders`) — place an order for a book with a user-picked
   return date (native `<input type="date">`, `min`/`max` clamped to a
-  10-day window from today), plus a sortable/filterable history table of
-  every past and current order (sort by book or order date, filter by book
-  title and an order-date range) with a per-row Return action that opens a
-  confirm modal — pre-filled with today's return date, an admin-handover
-  dropdown (admin users only) that's required before confirming — which
-  marks the loan returned and frees up the book's availability
+  10-day window from today), plus a sortable/filterable/paginated history
+  table of every past and current order (sort by book or order date, filter
+  by book title and an order-date range) with a per-row Return action that
+  opens a confirm modal — pre-filled with today's return date, an
+  admin-handover dropdown (admin users only) that's required before
+  confirming — which marks the loan returned and frees up the book's
+  availability. An "Export to Excel" button downloads the user's full order
+  history as CSV, same page layout (wide table wrapper, pagination bar) as
+  the admin Orders page below.
 - Admin Orders (`/admin/orders`, admin-only) — every customer's orders in one
-  sortable/filterable table (filter by book title, customer, status), each
-  row showing who ordered what, ordered/return-by/returned-on dates, which
-  admin it was returned to, and a Return action (an admin can return any
-  customer's loan). Book and Customer names link to two drill-down pages:
-  `/admin/orders/book/:id/history` (everyone who's ordered that book, their
-  return status/date) and `/admin/orders/user/:id/history` (one customer's
-  full order history) — both admin-only, reusing the same return flow.
+  sortable/filterable/paginated table (filter by book title, customer,
+  status), each row showing who ordered what, ordered/return-by/returned-on
+  dates, which admin it was returned to, and a Return action (an admin can
+  return any customer's loan). An "Export to Excel" button downloads every
+  order across every customer as CSV. Book and Customer names link to two
+  drill-down pages: `/admin/orders/book/:id/history` (everyone who's
+  ordered that book, their return status/date) and
+  `/admin/orders/user/:id/history` (one customer's full order history) —
+  both admin-only, reusing the same return flow.
 - Drag-and-drop — reorder items in the wishlist
 - Theme toggle (light/dark), persisted via `localStorage`
 - An `<iframe>` — embedded "library location" map/preview panel

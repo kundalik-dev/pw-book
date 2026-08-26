@@ -6,9 +6,12 @@ import { showToast } from '../components/toast';
 import { navigate } from '../router/router';
 import { getAuthState } from '../state/auth';
 import '../styles/phase9.css';
+import { downloadBlob } from '../utils/download';
 
 // Mirrors ORDER_RETURN_WINDOW_DAYS in apps/api's schemas/loan.ts
 const ORDER_RETURN_WINDOW_DAYS = 10;
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 type SortKey = 'borrowedAt' | 'book';
 type SortDir = 1 | -1;
@@ -22,18 +25,20 @@ function startOfTodayUTC(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-export function renderOrdersPage(container: HTMLElement): void {
+export function renderOrdersPage(container: HTMLElement): () => void {
   const auth = getAuthState();
   if (!auth) {
     showToast('Log in to view your orders.', 'error');
     navigate('/login');
-    return;
+    return () => {};
   }
   if (auth.user.role === 'admin') {
     showToast('Admins cannot order books.', 'error');
     navigate('/admin/orders');
-    return;
+    return () => {};
   }
+
+  container.classList.add('page-container--wide');
 
   let books: Book[] = [];
   let bookTitles = new Map<number, string>();
@@ -45,15 +50,41 @@ export function renderOrdersPage(container: HTMLElement): void {
   let bookFilter = '';
   let dateFrom = '';
   let dateTo = '';
+  let page = 1;
+  let limit = PAGE_SIZE_OPTIONS[0];
 
   const root = document.createElement('div');
   root.className = 'orders-page';
   root.setAttribute('data-testid', 'orders-page');
   container.appendChild(root);
 
+  const headerRow = document.createElement('div');
+  headerRow.className = 'page-header-row';
+  root.appendChild(headerRow);
+
   const heading = document.createElement('h1');
   heading.textContent = 'My orders';
-  root.appendChild(heading);
+  headerRow.appendChild(heading);
+
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'btn btn--secondary';
+  exportBtn.textContent = 'Export to Excel';
+  exportBtn.setAttribute('data-testid', 'orders-export');
+  exportBtn.addEventListener('click', () => void exportOrders());
+  headerRow.appendChild(exportBtn);
+
+  async function exportOrders(): Promise<void> {
+    exportBtn.disabled = true;
+    try {
+      const blob = await apiClient.exportMyLoansCsv();
+      downloadBlob(blob, 'my-orders-export.csv');
+    } catch {
+      showToast('Could not export your orders.', 'error');
+    } finally {
+      exportBtn.disabled = false;
+    }
+  }
 
   const form = document.createElement('form');
   form.className = 'order-form';
@@ -129,6 +160,7 @@ export function renderOrdersPage(container: HTMLElement): void {
   bookFilterInput.setAttribute('data-testid', 'orders-filter-book');
   bookFilterInput.addEventListener('input', () => {
     bookFilter = bookFilterInput.value;
+    page = 1;
     renderRows();
   });
   bookFilterLabel.appendChild(bookFilterInput);
@@ -141,6 +173,7 @@ export function renderOrdersPage(container: HTMLElement): void {
   dateFromInput.setAttribute('data-testid', 'orders-filter-date-from');
   dateFromInput.addEventListener('change', () => {
     dateFrom = dateFromInput.value;
+    page = 1;
     renderRows();
   });
   dateFromLabel.appendChild(dateFromInput);
@@ -153,6 +186,7 @@ export function renderOrdersPage(container: HTMLElement): void {
   dateToInput.setAttribute('data-testid', 'orders-filter-date-to');
   dateToInput.addEventListener('change', () => {
     dateTo = dateToInput.value;
+    page = 1;
     renderRows();
   });
   dateToLabel.appendChild(dateToInput);
@@ -170,19 +204,77 @@ export function renderOrdersPage(container: HTMLElement): void {
     bookFilterInput.value = '';
     dateFromInput.value = '';
     dateToInput.value = '';
+    page = 1;
     renderRows();
   });
   filterBar.appendChild(clearFiltersBtn);
 
+  const tableWrapper = document.createElement('div');
+  tableWrapper.className = 'admin-table-wrapper';
+  root.appendChild(tableWrapper);
+
   const table = document.createElement('table');
   table.className = 'admin-table orders-table';
   table.setAttribute('data-testid', 'orders-table');
-  root.appendChild(table);
+  tableWrapper.appendChild(table);
 
   const thead = document.createElement('thead');
   table.appendChild(thead);
   const tbody = document.createElement('tbody');
   table.appendChild(tbody);
+
+  const paginationBar = document.createElement('div');
+  paginationBar.className = 'pagination-bar';
+  paginationBar.setAttribute('data-testid', 'pagination-bar');
+  root.appendChild(paginationBar);
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'btn btn--secondary';
+  prevBtn.textContent = 'Previous';
+  prevBtn.setAttribute('data-testid', 'pagination-prev');
+  prevBtn.addEventListener('click', () => {
+    if (page > 1) {
+      page -= 1;
+      renderRows();
+    }
+  });
+  paginationBar.appendChild(prevBtn);
+
+  const pageInfo = document.createElement('span');
+  pageInfo.setAttribute('data-testid', 'pagination-info');
+  paginationBar.appendChild(pageInfo);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'btn btn--secondary';
+  nextBtn.textContent = 'Next';
+  nextBtn.setAttribute('data-testid', 'pagination-next');
+  nextBtn.addEventListener('click', () => {
+    page += 1;
+    renderRows();
+  });
+  paginationBar.appendChild(nextBtn);
+
+  const limitLabel = document.createElement('label');
+  limitLabel.className = 'pagination-bar__limit';
+  limitLabel.append('Rows per page ');
+  const limitSelect = document.createElement('select');
+  limitSelect.setAttribute('data-testid', 'pagination-limit');
+  for (const size of PAGE_SIZE_OPTIONS) {
+    const opt = document.createElement('option');
+    opt.value = String(size);
+    opt.textContent = String(size);
+    if (size === limit) opt.selected = true;
+    limitSelect.appendChild(opt);
+  }
+  limitSelect.addEventListener('change', () => {
+    limit = Number(limitSelect.value);
+    page = 1;
+    renderRows();
+  });
+  limitLabel.appendChild(limitSelect);
+  paginationBar.appendChild(limitLabel);
 
   function renderHeader(): void {
     thead.innerHTML = '';
@@ -248,8 +340,20 @@ export function renderOrdersPage(container: HTMLElement): void {
     });
   }
 
+  function updatePaginationBar(total: number, totalPages: number): void {
+    pageInfo.textContent =
+      total === 0 ? 'No orders' : `Page ${page} of ${totalPages} (${total} orders)`;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= totalPages;
+  }
+
   function renderRows(): void {
-    const rows = filteredSortedLoans();
+    const allRows = filteredSortedLoans();
+    const totalPages = Math.max(1, Math.ceil(allRows.length / limit));
+    if (page > totalPages) page = totalPages;
+    const start = (page - 1) * limit;
+    const rows = allRows.slice(start, start + limit);
+    updatePaginationBar(allRows.length, totalPages);
     tbody.innerHTML = '';
 
     if (rows.length === 0) {
@@ -363,4 +467,8 @@ export function renderOrdersPage(container: HTMLElement): void {
   void loadBooks();
   void loadAdmins();
   void loadLoans();
+
+  return () => {
+    container.classList.remove('page-container--wide');
+  };
 }

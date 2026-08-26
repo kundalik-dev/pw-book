@@ -557,6 +557,9 @@ a {
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.7rem 1rem;
   border-radius: var(--radius);
   color: white;
@@ -564,6 +567,11 @@ a {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: opacity 0.2s ease;
   opacity: 1;
+}
+
+.toast__icon {
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .toast--success {

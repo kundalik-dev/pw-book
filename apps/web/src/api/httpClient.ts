@@ -154,6 +154,14 @@ export class HttpApiClient implements ApiClient {
     return users;
   }
 
+  exportMyLoansCsv(): Promise<Blob> {
+    return this.requestBlob('/loans/me/export');
+  }
+
+  exportAllLoansCsv(): Promise<Blob> {
+    return this.requestBlob('/loans/export');
+  }
+
   async resetSystem(): Promise<ResetSummary> {
     const { summary } = await this.request<{ summary: ResetSummary }>('/system/reset', {
       method: 'POST',
@@ -161,7 +169,10 @@ export class HttpApiClient implements ApiClient {
     return summary;
   }
 
-  private async request<T>(path: string, options: { method: string; body?: unknown }): Promise<T> {
+  private async fetchOk(
+    path: string,
+    options: { method: string; body?: unknown },
+  ): Promise<Response> {
     const auth = getAuthState();
     const headers: Record<string, string> = {};
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -186,7 +197,7 @@ export class HttpApiClient implements ApiClient {
         navigate('/login');
         // Never resolves: the page is navigating away, so callers' .catch
         // handlers should not run and show their own error toast.
-        return new Promise<T>(() => {});
+        return new Promise<Response>(() => {});
       }
 
       throw new ApiError(
@@ -195,10 +206,19 @@ export class HttpApiClient implements ApiClient {
       );
     }
 
+    return response;
+  }
+
+  private async request<T>(path: string, options: { method: string; body?: unknown }): Promise<T> {
+    const response = await this.fetchOk(path, options);
     if (response.status === 204) {
       return undefined as T;
     }
-
     return response.json() as Promise<T>;
+  }
+
+  private async requestBlob(path: string): Promise<Blob> {
+    const response = await this.fetchOk(path, { method: 'GET' });
+    return response.blob();
   }
 }

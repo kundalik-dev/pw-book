@@ -360,6 +360,23 @@
   gap: 0.6rem;
 }
 
+.wizard-due-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.wizard-due-date-label input {
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
 /* Admin table */
 
 .admin-toolbar {
@@ -586,6 +603,14 @@
 }
 
 /* Orders */
+
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
 
 .order-form {
   display: flex;

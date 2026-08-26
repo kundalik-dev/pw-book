@@ -175,5 +175,9 @@ export interface ApiClient {
   listAllLoans(params?: ListLoansParams): Promise<Loan[]>;
   /** Admin-only: every user, for the admin Orders page's customer lookups. */
   listUsers(): Promise<AppUser[]>;
+  /** CSV export of the current user's own orders — the "My orders" page's export button. */
+  exportMyLoansCsv(): Promise<Blob>;
+  /** Admin-only: CSV export of every order across every customer. */
+  exportAllLoansCsv(): Promise<Blob>;
   resetSystem(): Promise<ResetSummary>;
 }

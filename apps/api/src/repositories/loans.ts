@@ -188,6 +188,69 @@ export async function hasActiveLoansForBook(bookId: number): Promise<boolean> {
   return result.recordset.length > 0;
 }
 
+export interface LoanExportRow {
+  id: number;
+  bookTitle: string;
+  customerName: string;
+  customerEmail: string;
+  borrowedAt: Date;
+  dueAt: Date;
+  returnedAt: Date | null;
+  returnedToAdminName: string | null;
+  status: 'active' | 'returned' | 'overdue';
+}
+
+interface LoanExportQueryRow {
+  Id: number;
+  BookTitle: string;
+  CustomerName: string;
+  CustomerEmail: string;
+  BorrowedAt: Date;
+  DueAt: Date;
+  ReturnedAt: Date | null;
+  ReturnedToAdminName: string | null;
+  Status: 'active' | 'returned' | 'overdue';
+}
+
+/**
+ * Joined loan rows (book title, customer, return-handover admin name) for
+ * CSV export — backs both the member "My orders" export (`filters.userId`
+ * set) and the admin "All orders" export (no filter).
+ */
+export async function listLoansForExport(
+  filters: { userId?: number } = {},
+): Promise<LoanExportRow[]> {
+  const pool = requirePool();
+  const request = pool.request();
+  const conditions: string[] = [];
+  if (filters.userId !== undefined) {
+    request.input('userId', sql.Int, filters.userId);
+    conditions.push('l.UserId = @userId');
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const result = await request.query(
+    `SELECT l.Id, b.Title AS BookTitle, u.Name AS CustomerName, u.Email AS CustomerEmail,
+            l.BorrowedAt, l.DueAt, l.ReturnedAt, ra.Name AS ReturnedToAdminName, l.Status
+     FROM dbo.Loans l
+     JOIN dbo.Books b ON b.Id = l.BookId
+     JOIN dbo.Users u ON u.Id = l.UserId
+     LEFT JOIN dbo.Users ra ON ra.Id = l.ReturnedToAdminId
+     ${where}
+     ORDER BY l.BorrowedAt DESC`,
+  );
+  return (result.recordset as LoanExportQueryRow[]).map((row) => ({
+    id: row.Id,
+    bookTitle: row.BookTitle,
+    customerName: row.CustomerName,
+    customerEmail: row.CustomerEmail,
+    borrowedAt: row.BorrowedAt,
+    dueAt: row.DueAt,
+    returnedAt: row.ReturnedAt,
+    returnedToAdminName: row.ReturnedToAdminName,
+    status: row.Status,
+  }));
+}
+
 /**
  * Flips any `active` loan whose due date has passed to `overdue` before
  * reading the report, so the Status column stays meaningful without a
