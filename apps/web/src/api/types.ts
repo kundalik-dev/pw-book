@@ -14,24 +14,39 @@ export interface AuthResult {
 }
 
 export interface Book {
-  id: string;
+  id: number;
   title: string;
   isbn: string;
-  author: string;
-  categories: string[];
-  description: string;
-  publishedYear: number;
+  authorId: number;
+  categoryIds: number[];
+  description: string | null;
+  publishedYear: number | null;
   coverImageUrl: string | null;
   totalCopies: number;
   availableCopies: number;
 }
 
-export interface PaginatedBooks {
-  items: Book[];
+export interface Author {
+  id: number;
+  name: string;
+  bio: string | null;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+}
+
+export interface BooksPagination {
   page: number;
   limit: number;
   total: number;
-  hasMore: boolean;
+  totalPages: number;
+}
+
+export interface PaginatedBooks {
+  books: Book[];
+  pagination: BooksPagination;
 }
 
 export interface ListBooksParams {
@@ -66,4 +81,6 @@ export interface ApiClient {
   login(input: LoginInput): Promise<AuthResult>;
   me(): Promise<User>;
   listBooks(params: ListBooksParams): Promise<PaginatedBooks>;
+  listAuthors(): Promise<Author[]>;
+  listCategories(): Promise<Category[]>;
 }

@@ -38,24 +38,34 @@ connection pool on transient failures rather than crashing (Phase 2, done).
 
 ## Current status
 
-- **`apps/web` (Phases 6-7) is scaffolded and builds/lints/type-checks
-  clean**, built ahead of the backend at the user's request. It talks to a
-  swappable `ApiClient` (`apps/web/src/api/client.ts`): an in-memory
-  `MockApiClient` by default, or `HttpApiClient` (real `fetch`, matching
-  the `{ error: { message, code } }` shape) when `VITE_USE_MOCK_API=false`.
+- **`apps/web` (Phases 6-7) is reconciled against the real, live-verified
+  API and builds/lints/type-checks clean.** It talks to a swappable
+  `ApiClient` (`apps/web/src/api/client.ts`): `HttpApiClient` (real
+  `fetch`, matching the `{ error: { message, code } }` shape) by default
+  now that Phases 1-5 exist, or an in-memory `MockApiClient` when
+  `VITE_USE_MOCK_API=true` (offline work / no local SQL Server running).
   Implemented so far: login/register with inline validation, navbar with
   account dropdown, book grid with "load more" pagination, toast
   notifications.
-- **Known issues / not yet done:**
-  - Not verified in a real browser this session (no Chrome extension
-    connection available) — only `tsc`, `biome check`, and `vite build`
-    were run. Click through `npm run dev -w apps/web` before relying on it.
-  - Once Phase 3 (auth APIs) lands, flip `VITE_USE_MOCK_API=false` and
-    re-check `HttpApiClient` / the register/login error-code handling
-    against the real API — the mock only assumes `EMAIL_TAKEN` and
-    `INVALID_CREDENTIALS` codes from `docs/features.md`, not whatever the
-    real backend actually returns.
-- **`apps/api` (Phases 2-4) is built and verified end-to-end against the
+  - Was originally built ahead of the backend from `docs/features.md`
+    assumptions, so several of its API types didn't match what the real
+    backend ended up returning — fixed while reconciling: `Book` now uses
+    numeric `id`/`authorId`/`categoryIds[]` (matching the API) instead of
+    a string id and embedded `author`/`categories` name strings; the book
+    grid resolves names via new `ApiClient.listAuthors()`/
+    `listCategories()` calls (backed by the existing `GET /api/authors` /
+    `GET /api/categories`) built into id→name lookup maps client-side.
+    `PaginatedBooks` now matches the real `{ books, pagination: { page,
+    limit, total, totalPages } }` shape instead of the assumed `{ items,
+    page, limit, total, hasMore }`. `AuthResult`/register/login error
+    codes needed no changes — they matched what was assumed. `MockData`/
+    `MockApiClient` were updated to the same shapes so the mock fallback
+    still works, not left to bit-rot now it's no longer the default.
+  - **Not yet click-tested in a real browser** — no Chrome extension
+    connection was available this session, so the UI itself (as opposed
+    to the API contract) is only compile/build/curl-verified. Click
+    through `npm run dev -w apps/web` before fully relying on it.
+- **`apps/api` (Phases 2-5) is built and verified end-to-end against the
   live local SQL Server instance** — the Phase 1 login blocker below was
   resolved and the DB is now migrated + seeded. `/api/health` and
   `/api/health/db` both work as designed. Auth (Phase 3): register, login,
@@ -69,10 +79,17 @@ connection pool on transient failures rather than crashing (Phase 2, done).
   served from `/uploads/covers/`, and `PATCH /api/books/:id/availability`
   — see `src/routes/{authors,categories,books}.ts`,
   `src/repositories/{authors,categories,books}.ts`,
-  `src/schemas/{author,category,book}.ts`. `GET /api/books/export` is a
-  501 stub — real CSV export is Phase 5. Details and the full curl-verified
-  test matrix are in `docs/tasks/01-mvp-build-plan.md` (Phase 3 and Phase 4
-  sections).
+  `src/schemas/{author,category,book}.ts`. Advanced/workflow (Phase 5):
+  Loans (borrow/return/`me`/admin-only `overdue`), Reviews (list/create
+  one-per-user-per-book/delete with ownership check), CSV bulk-import
+  (`POST /api/books/bulk-import`, per-row partial-failure response) and
+  real CSV export (`GET /api/books/export`, replacing the earlier 501
+  stub), and chaos routes `GET /api/slow?ms=` / `GET /api/flaky` for
+  timeout/retry practice — see `src/routes/{loans,reviews,chaos}.ts`,
+  `src/repositories/{loans,reviews}.ts`, `src/schemas/{loan,review}.ts`,
+  `src/utils/csv.ts`. No stub/placeholder handlers remain anywhere in
+  `apps/api`. Details and the full curl-verified test matrix are in
+  `docs/tasks/01-mvp-build-plan.md` (Phase 3, 4, and 5 sections).
   - **Bug found and fixed (Phase 2):** the repo has one root `.env`, but
     plain `dotenv/config` and Vite's default `envDir` each only look in
     their own workspace's cwd, so `apps/api` and `apps/web` were silently

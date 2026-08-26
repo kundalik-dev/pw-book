@@ -174,49 +174,97 @@ finish Phase 1. Seeded login for later testing: `admin@pwbooks.test` /
   swallow the `export` path; keep that ordering when Phase 5 implements it
   for real.
 
-## Phase 5 — Advanced/workflow APIs
+## Phase 5 — Advanced/workflow APIs ✅
 
-- [ ] Loans: borrow, return, `GET /api/loans/me`, `GET /api/loans/overdue`
-- [ ] Reviews: list, create (one-per-user-per-book), delete (ownership check)
-- [ ] `POST /api/books/bulk-import` (CSV, partial-failure response)
-- [ ] `GET /api/books/export` (CSV download)
-- [ ] `GET /api/slow?ms=` and `GET /api/flaky`
+- [x] Loans: `POST /api/loans` (borrow), `PUT /api/loans/:id/return`,
+      `GET /api/loans/me`, admin-only `GET /api/loans/overdue` — see
+      `src/routes/loans.ts`, `src/repositories/loans.ts`, `src/schemas/loan.ts`
+- [x] Reviews: `GET /api/books/:id/reviews`, `POST /api/books/:id/reviews`
+      (one-per-user-per-book), `DELETE /api/reviews/:id` (owner or admin only,
+      403 `FORBIDDEN` otherwise) — see `src/routes/reviews.ts`,
+      `src/repositories/reviews.ts`, `src/schemas/review.ts`
+- [x] `POST /api/books/bulk-import` — CSV via Multer, unknown authors/
+      categories created on the fly, per-row partial-failure response
+      (201 all-success / 207 partial / 400 all-failed), `src/utils/csv.ts` for
+      parse/stringify
+- [x] `GET /api/books/export` — real CSV download (replaced the Phase 4 501
+      stub), `title,isbn,authorName,categoryNames,description,publishedYear,
+      totalCopies,availableCopies` with `;`-joined category names
+- [x] `GET /api/slow?ms=` (clamped 0-30000ms) and `GET /api/flaky` (30%
+      random 500) — `src/routes/chaos.ts`, mounted unauthenticated for easy
+      Playwright timeout/retry practice
 
-## Phase 6 — Frontend scaffold (`apps/web`)
+  New files: `src/repositories/{loans,reviews}.ts`, `src/routes/{loans,
+  reviews,chaos}.ts`, `src/schemas/{loan,review}.ts`, `src/utils/csv.ts`.
+  All routes registered in `src/app.ts`. No stub/placeholder logic remains
+  anywhere in `apps/api` — every route in Phases 2-5 has a real handler.
+
+## Phase 6 — Frontend scaffold (`apps/web`) ✅
 
 - [x] Vite + vanilla TypeScript project
 - [x] Minimal client-side router (or plain multi-page app — simpler is fine)
 - [x] Typed `fetch` API client wrapping the backend base URL from env
 - [x] Global layout: navbar + page container + toast/alert host
 
-  Built ahead of the backend (Phases 1-5 aren't done yet — see note below),
-  so `apps/web/src/api/client.ts` selects between a real `HttpApiClient`
-  (fetch-based) and an in-memory `MockApiClient` via `VITE_USE_MOCK_API`
-  (defaults to mock). Both implement the same `ApiClient` interface in
-  `src/api/types.ts`, so switching to the real backend later is a one-line
-  env flip, not a rewrite.
+  Originally built ahead of the backend (Phases 1-5 weren't done yet); now
+  reconciled against the real, live-verified API from Phases 3-5.
+  `apps/web/src/api/client.ts` still selects between a real `HttpApiClient`
+  (fetch-based) and an in-memory `MockApiClient` via `VITE_USE_MOCK_API`,
+  but **the default flipped**: real API by default now, `VITE_USE_MOCK_API=
+  true` opts back into the mock (offline work, or no local SQL Server
+  running). Both implement the same `ApiClient` interface in
+  `src/api/types.ts`.
 
-## Phase 7 — Frontend: simple UI
+  **Contract fixes made while reconciling against the real API** (the
+  frontend was built from `docs/features.md` assumptions before the API
+  existed, and several didn't match what got built):
+  - `Book` used `id: string`, `author: string`, `categories: string[]`.
+    The real API returns numeric `id`/`authorId`/`categoryIds[]` (books
+    only reference authors/categories by id, not by embedded name) — types
+    and the book-card renderer updated to match, with two new
+    `ApiClient` methods (`listAuthors`/`listCategories`, backed by the
+    existing `GET /api/authors` / `GET /api/categories`) used to build
+    id→name lookup maps client-side.
+  - `PaginatedBooks` assumed `{ items, page, limit, total, hasMore }`; the
+    real `GET /api/books` returns `{ books, pagination: { page, limit,
+    total, totalPages } }`. Updated the type, `HttpApiClient.listBooks`,
+    `MockApiClient.listBooks` (now returns the same shape), and the books
+    page's "load more" logic (`hasMore` derived from `page < totalPages`).
+  - `AuthResult`/`User`/register/login error codes (`EMAIL_TAKEN`,
+    `INVALID_CREDENTIALS`) needed **no changes** — verified via live curl
+    against `/api/auth/{register,login}`, the shapes matched what was
+    assumed exactly.
+  - Updated `MockApiClient`/`mockData.ts` to the new shapes too (added
+    `mockAuthors`/`mockCategories`) so the mock fallback still type-checks
+    and stays usable, rather than leaving it to bit-rot now that it's no
+    longer the default.
+  - `.env.sample`'s stray "local Docker-based development" comment was
+    stale (this repo deliberately has no Docker, see `CLAUDE.md`) — fixed
+    to reference the local SQL Server instance instead.
+
+## Phase 7 — Frontend: simple UI ✅
 
 - [x] Login / Register pages with inline validation
 - [x] Navbar with account dropdown, active-link styling
 - [x] Book list page: grid, "load more" pagination
 - [x] Toast notifications on success/error
 
-  **Not yet verified in a real browser** — the Chrome extension wasn't
-  connected in this session, so this was validated via `tsc`, `biome
-check`, and `vite build` only, not by clicking through the app. Before
-  trusting this UI, load `npm run dev -w apps/web` and check: register →
-  redirected to /books with a welcome toast; load more paginates the mock
-  24-book set; logout clears the account dropdown and redirects to /login.
+  **Verified against the real, running API** (not the mock) via `tsc`,
+  `biome check`, `vite build`, and live curl round-trips against
+  `/api/auth/login`, `/api/books`, `/api/authors`, `/api/categories` while
+  both dev servers (`api` on :3000, `web` on :5173) were running — response
+  shapes confirmed to match the updated frontend types exactly (see Phase 6
+  notes above for what had to change).
 
-  **Needs fixing once Phase 2-5 backend exists:** set
-  `VITE_USE_MOCK_API=false` in `.env`, then re-check `register`/`login`
-  error-code handling in `src/pages/register.ts` and
-  `src/api/httpClient.ts` against the real `{ error: { message, code } }`
-  responses — the mock only exercises the `EMAIL_TAKEN` and
-  `INVALID_CREDENTIALS` codes assumed from `docs/features.md`, not
-  whatever the real API actually returns.
+  **Still not click-tested in an actual browser this session** — the
+  Chrome extension wasn't connected, so the UI itself (as opposed to the
+  API contract it calls) is only compile/build-verified. Before fully
+  trusting this UI, load `npm run dev -w apps/web` with
+  `VITE_USE_MOCK_API=false` and check: register → redirected to /books
+  with a welcome toast and real book cards (author/category names
+  resolved via the new lookup maps, not raw ids); load more paginates the
+  real 20-book seed set using `pagination.totalPages`; logout clears the
+  account dropdown and redirects to /login.
 
 ## Phase 8 — Frontend: intermediate UI
 

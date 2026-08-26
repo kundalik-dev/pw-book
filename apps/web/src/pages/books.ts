@@ -6,6 +6,8 @@ import { showToast } from '../components/toast';
 const PAGE_SIZE = 8;
 
 export function renderBooksPage(container: HTMLElement): void {
+  let authorNames = new Map<number, string>();
+  let categoryNames = new Map<number, string>();
   const page = document.createElement('div');
   page.className = 'books-page';
 
@@ -57,12 +59,13 @@ export function renderBooksPage(container: HTMLElement): void {
 
     const author = document.createElement('p');
     author.className = 'book-card__author';
-    author.textContent = book.author;
+    author.textContent = authorNames.get(book.authorId) ?? 'Unknown author';
     card.appendChild(author);
 
+    const categoryLabels = book.categoryIds.map((id) => categoryNames.get(id) ?? 'Uncategorized');
     const meta = document.createElement('p');
     meta.className = 'book-card__meta';
-    meta.textContent = `${book.publishedYear} · ${book.categories.join(', ')}`;
+    meta.textContent = `${book.publishedYear ?? 'n/a'} · ${categoryLabels.join(', ')}`;
     card.appendChild(meta);
 
     const badge = document.createElement('span');
@@ -81,8 +84,8 @@ export function renderBooksPage(container: HTMLElement): void {
     try {
       const result = await apiClient.listBooks({ page: pageNum, limit: PAGE_SIZE });
       clearSkeletons();
-      for (const book of result.items) renderBookCard(book);
-      loadMoreWrapper.hidden = !result.hasMore;
+      for (const book of result.books) renderBookCard(book);
+      loadMoreWrapper.hidden = result.pagination.page >= result.pagination.totalPages;
     } catch (err) {
       clearSkeletons();
       const message = err instanceof ApiError ? err.message : 'Could not load books.';
@@ -97,5 +100,19 @@ export function renderBooksPage(container: HTMLElement): void {
     loadPage(currentPage);
   });
 
-  loadPage(currentPage);
+  async function init(): Promise<void> {
+    try {
+      const [authors, categories] = await Promise.all([
+        apiClient.listAuthors(),
+        apiClient.listCategories(),
+      ]);
+      authorNames = new Map(authors.map((a) => [a.id, a.name]));
+      categoryNames = new Map(categories.map((c) => [c.id, c.name]));
+    } catch {
+      // Book cards fall back to "Unknown author" / "Uncategorized" labels.
+    }
+    await loadPage(currentPage);
+  }
+
+  init();
 }

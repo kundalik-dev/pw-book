@@ -1,7 +1,9 @@
 import { getAuthState } from '../../state/auth';
 import type {
   ApiClient,
+  Author,
   AuthResult,
+  Category,
   ListBooksParams,
   LoginInput,
   PaginatedBooks,
@@ -9,7 +11,7 @@ import type {
   User,
 } from '../types';
 import { ApiError } from '../types';
-import { type MockUserRecord, mockBooks, mockUsers } from './mockData';
+import { type MockUserRecord, mockAuthors, mockBooks, mockCategories, mockUsers } from './mockData';
 
 const MOCK_LATENCY_MS = 300;
 
@@ -32,9 +34,10 @@ function userIdFromToken(token: string): string | null {
 }
 
 /**
- * Stands in for the real backend (Phases 1-5 of docs/tasks/01-mvp-build-plan.md
- * aren't built yet). Mutates in-memory copies so register/login feel real across
- * a session, but nothing persists past a page reload.
+ * Optional stand-in for the real backend, for offline work or when the local
+ * SQL Server instance isn't running (opt in via VITE_USE_MOCK_API=true).
+ * Mutates in-memory copies so register/login feel real across a session, but
+ * nothing persists past a page reload.
  */
 export class MockApiClient implements ApiClient {
   private users: MockUserRecord[] = [...mockUsers];
@@ -81,21 +84,32 @@ export class MockApiClient implements ApiClient {
     const q = params.q?.trim().toLowerCase();
 
     const filtered = q
-      ? mockBooks.filter(
-          (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q),
-        )
+      ? mockBooks.filter((b) => {
+          const authorName = mockAuthors.find((a) => a.id === b.authorId)?.name ?? '';
+          return b.title.toLowerCase().includes(q) || authorName.toLowerCase().includes(q);
+        })
       : mockBooks;
 
     const start = (page - 1) * limit;
-    const items = filtered.slice(start, start + limit);
+    const books = filtered.slice(start, start + limit);
 
     return delay({
-      items,
-      page,
-      limit,
-      total: filtered.length,
-      hasMore: start + items.length < filtered.length,
+      books,
+      pagination: {
+        page,
+        limit,
+        total: filtered.length,
+        totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
+      },
     });
+  }
+
+  async listAuthors(): Promise<Author[]> {
+    return delay([...mockAuthors]);
+  }
+
+  async listCategories(): Promise<Category[]> {
+    return delay([...mockCategories]);
   }
 
   private toAuthResult(record: MockUserRecord): AuthResult {

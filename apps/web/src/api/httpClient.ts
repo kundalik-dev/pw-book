@@ -1,7 +1,9 @@
 import { getAuthState } from '../state/auth';
 import type {
   ApiClient,
+  Author,
   AuthResult,
+  Category,
   ListBooksParams,
   LoginInput,
   PaginatedBooks,
@@ -36,6 +38,18 @@ export class HttpApiClient implements ApiClient {
     if (params.q) query.set('q', params.q);
     const qs = query.toString();
     return this.request<PaginatedBooks>(`/books${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  }
+
+  async listAuthors(): Promise<Author[]> {
+    const { authors } = await this.request<{ authors: Author[] }>('/authors', { method: 'GET' });
+    return authors;
+  }
+
+  async listCategories(): Promise<Category[]> {
+    const { categories } = await this.request<{ categories: Category[] }>('/categories', {
+      method: 'GET',
+    });
+    return categories;
   }
 
   private async request<T>(path: string, options: { method: string; body?: unknown }): Promise<T> {
