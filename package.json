@@ -1,0 +1,26 @@
+{
+  "name": "pw-books",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Library-management app used as a Playwright automation practice target (API, UI, and DB testing).",
+  "license": "ISC",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check --write .",
+    "db:migrate": "npm run migrate -w apps/db",
+    "db:seed": "npm run seed -w apps/db"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "turbo": "^2.10.12"
+  }
+}
