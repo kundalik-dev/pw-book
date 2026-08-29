@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: pw-books API
+  version: "1.0.0"
+  description: >
+    OpenAPI/Swagger document for the pw-books API — a small library-management
+    app built as a Playwright automation practice target. This spec is being
+    built incrementally, module by module (see api-swagger/README.md).
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Registration, login, token refresh, and session endpoints.
+
+paths:
+  /auth/register:
+    $ref: "./paths/auth/register.yaml"
+  /auth/login:
+    $ref: "./paths/auth/login.yaml"
+
+components:
+  schemas:
+    User:
+      $ref: "./components/schemas/user.yaml"
+    RegisterRequest:
+      $ref: "./components/schemas/register-request.yaml"
+    LoginRequest:
+      $ref: "./components/schemas/login-request.yaml"
+    AuthResult:
+      $ref: "./components/schemas/auth-result.yaml"
+    ErrorResponse:
+      $ref: "./components/schemas/error-response.yaml"
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Access token returned by /auth/register, /auth/login, or
+        /auth/refresh, sent as `Authorization: Bearer <accessToken>`.

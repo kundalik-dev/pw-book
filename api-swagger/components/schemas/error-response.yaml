@@ -1,0 +1,17 @@
+type: object
+description: Standard error envelope used by every pw-books API error response.
+required:
+  - error
+properties:
+  error:
+    type: object
+    required:
+      - message
+      - code
+    properties:
+      message:
+        type: string
+        example: An account with this email already exists.
+      code:
+        type: string
+        example: EMAIL_TAKEN

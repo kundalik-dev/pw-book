@@ -35,6 +35,7 @@ export function mountNavbar(target: HTMLElement): void {
       } else {
         links.appendChild(createNavLink('/orders', 'Orders'));
       }
+      links.appendChild(createApiDocsLink());
     }
 
     const themeToggle = document.createElement('button');
@@ -119,6 +120,18 @@ export function mountNavbar(target: HTMLElement): void {
   onAuthChange(render);
   window.addEventListener('app:routechange', render);
   render();
+}
+
+function createApiDocsLink(): HTMLAnchorElement {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+  const link = document.createElement('a');
+  link.href = `${apiBaseUrl}/docs`;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'navbar__link';
+  link.textContent = 'API Docs';
+  link.setAttribute('data-testid', 'api-docs-link');
+  return link;
 }
 
 function createNavLink(path: string, label: string): HTMLAnchorElement {

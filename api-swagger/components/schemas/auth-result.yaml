@@ -1,0 +1,17 @@
+type: object
+description: >
+  Successful auth response — the account plus a fresh access/refresh token
+  pair. Returned by both register and login.
+required:
+  - user
+  - accessToken
+  - refreshToken
+properties:
+  user:
+    $ref: "./user.yaml"
+  accessToken:
+    type: string
+    description: Short-lived JWT access token.
+  refreshToken:
+    type: string
+    description: Long-lived opaque/JWT refresh token, stored server-side until consumed or revoked.

@@ -1,0 +1,42 @@
+post:
+  tags:
+    - Auth
+  summary: Log in
+  description: >
+    Verifies email/password credentials and issues a fresh access/refresh
+    token pair.
+  operationId: loginUser
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/login-request.yaml"
+  responses:
+    "200":
+      description: Credentials valid — session issued.
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/auth-result.yaml"
+    "400":
+      description: Validation error (e.g. missing field, invalid email).
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/error-response.yaml"
+          example:
+            error:
+              message: "Invalid email address"
+              code: VALIDATION_ERROR
+    "401":
+      description: Email or password is incorrect.
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/error-response.yaml"
+          example:
+            error:
+              message: Invalid email or password.
+              code: INVALID_CREDENTIALS

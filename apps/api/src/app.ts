@@ -10,6 +10,7 @@ import { authorsRouter } from './routes/authors';
 import { booksRouter } from './routes/books';
 import { categoriesRouter } from './routes/categories';
 import { chaosRouter } from './routes/chaos';
+import { docsRouter } from './routes/docs';
 import { healthRouter } from './routes/health';
 import { loansRouter } from './routes/loans';
 import { reviewsRouter } from './routes/reviews';
@@ -34,6 +35,7 @@ export function createApp(): Express {
   app.use('/api', usersRouter);
   app.use('/api', chaosRouter);
   app.use('/api', systemRouter);
+  app.use('/api', docsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

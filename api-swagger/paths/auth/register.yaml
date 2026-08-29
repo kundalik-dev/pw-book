@@ -1,0 +1,43 @@
+post:
+  tags:
+    - Auth
+  summary: Register a new user
+  description: >
+    Creates a new user account and immediately issues an access/refresh token
+    pair, so the caller is logged in right after registering. New accounts
+    always get the `member` role.
+  operationId: registerUser
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/register-request.yaml"
+  responses:
+    "201":
+      description: Account created and session issued.
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/auth-result.yaml"
+    "400":
+      description: Validation error (e.g. missing field, invalid email, password too short).
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/error-response.yaml"
+          example:
+            error:
+              message: "Invalid email address, Password must be at least 8 characters"
+              code: VALIDATION_ERROR
+    "409":
+      description: An account with this email already exists.
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/error-response.yaml"
+          example:
+            error:
+              message: An account with this email already exists.
+              code: EMAIL_TAKEN
